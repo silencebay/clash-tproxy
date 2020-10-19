@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -e
+
+echo -e "=================================="
+echo -e "This script runs after post push  "
+echo -e "=================================="
+
+export CLASH_VERSION=$(docker run --entrypoint "" --rm $IMAGE_NAME bash -c 'clash -v')
+CLASH_VERSION=$(echo $CLASH_VERSION | awk '{print $2}')
+
+echo "Environment variables:
+    IMAGE_NAME=$IMAGE_NAME
+    DOCKER_REPO=$DOCKER_REPO
+    DOCKER_TAG=$DOCKER_TAG
+    SOURCE_BRANCH=$SOURCE_BRANCH
+    BRANCH=$BRANCH
+    CLASH_VERSION=$CLASH_VERSION
+"
+
+[ -z ${BRANCH+x} ] || export BRANCH_TAG="-$BRANCH"
+docker tag $IMAGE_NAME ${DOCKER_REPO}:${DOCKER_TAG}${BRANCH_TAG}
+docker push ${DOCKER_REPO}:${DOCKER_TAG}${BRANCH_TAG}
+
+
+if [ -n ${CLASH_VERSION+x} ]; then
+    docker tag $IMAGE_NAME ${DOCKER_REPO}:${DOCKER_TAG}${BRANCH_TAG}-${CLASH_VERSION}
+    docker push ${DOCKER_REPO}:${DOCKER_TAG}${BRANCH_TAG}-${CLASH_VERSION}
+fi
+
+echo "post_push hook terminated successfully."
