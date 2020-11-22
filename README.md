@@ -73,7 +73,7 @@ version: "3.4"
 services:
   clash_tp:
     container_name: clash_tp
-    image: fy1128/clash_transparent_proxy:arm64v8
+    image: ghcr.io/silencebay/clash-tproxy:premium-latest
     privileged: true
     logging:
       options:
@@ -81,17 +81,22 @@ services:
         max-file: '3'
     restart: unless-stopped
     volumes:
-      - /root/docker/clash_tp/clash_config:/clash_config
+      - ./clash_config:/clash_config
     environment:
       - TZ=Asia/Shanghai
-      - EN_MODE_TUN=1
       - EN_MODE=redir-host
+    cap_add:
+      - NET_ADMIN
     networks:
       dMACvLAN:
         ipv4_address: 192.168.5.254
-      aio:
     dns:
       - 114.114.114.114
+
+networks:
+  dMACvLan:
+    external:
+      name: dMACvLan
 ```
 
 clash config.yaml
