@@ -18,6 +18,7 @@ RUN set -eux; \
     curl -L -O https://github.com/Dreamacro/maxmind-geoip/releases/latest/download/Country.mmdb;
 
 FROM --platform=$TARGETPLATFORM alpine AS runtime
+LABEL org.opencontainers.image.source https://silencebay@github.com/silencebay/clash-tproxy.git
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
