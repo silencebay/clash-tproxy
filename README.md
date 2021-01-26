@@ -8,13 +8,13 @@
 
 1. docker创建网络,注意将网段改为你自己的
 
-    `docker network create -d macvlan --subnet=192.168.1.0/24 --gateway=192.168.1.1 -o parent=eth0 macnet`
+    `docker network create -d macvlan --subnet=192.168.5.0/24 --gateway=192.168.5.1 -o parent=eth0 macnet`
 
 1. 提前准备好正确的clash config
 
 1. 运行容器
 
-    `sudo docker run --name clash_tp -d -v /your/path/clash_config:/clash_config  --network macnet --ip 192.168.1.100 --privileged zhangyi2018/clash_transparent_proxy`
+    `sudo docker run --name clash_tp -d -v /your/path/clash_config:/clash_config  --network macnet --ip 192.168.5.254 --privileged zhangyi2018/clash_transparent_proxy`
 
     ```yaml
     version: '3.2'
@@ -50,7 +50,7 @@
           name: macnet
     ```
 
-1. 将手机/电脑等客户端 网关设置为容器ip,如192.168.1.100 ,dns也设置成这个
+1. 将手机/电脑等客户端 网关设置为容器ip,如192.168.5.254 ,dns也设置成这个
 
 
 ## 附注 : 
@@ -246,16 +246,138 @@ proxies:
 ...
 ```
 
+## 设置客户端
+设置客户端（或设置路由器DHCP）默认网关及DNS服务器为容器IP:192.168.5.254
+
+以openwrt为例，在`/etc/config/dhcp`中`config dhcp 'lan'`段加入：
+
+```
+  list dhcp_option '6,192.168.5.254'
+  list dhcp_option '3,192.168.5.254'
+```
+## 关于IPv6 DNS
+使用过程中发现，若启用了IPv6，某些客户端(Android)会自动将DNS服务器地址指向默认网关(路由器)的ipv6地址，导致客户端不走docker中的dns服务器。
+
+解决方案是修改路由器中ipv6的`通告dns服务器`为容器ipv6地址。
+
+以openwrt为例，在`/etc/config/dhcp`中`config dhcp 'lan'`段加入：
+```
+  list dns 'fe80::fe80'
+```
+
+## 关于宿主机出口
+由于docker网络采用`macvlan`的`bridge`模式，宿主机虽然与容器在同一网段，但是相互之间是无法通信的，所以无法通过`tproxy-gateway`透明代理。
+
+### 解决方案1
+
+让宿主机直接走主路由，不经过代理网关：
+
+```bash
+ip route add default via 192.168.5.254 dev eth0 # 设置静态路由
+echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
+```
+
+### 解决方案2
+
+利用多个macvlan接口之间是互通的原理，新建一个macvlan虚拟接口：
+
+* 临时配置网络（重启后失效）
+
+   ```bash
+   ip link add link eth0 mac0 type macvlan mode bridge # 在eth0接口下添加一个macvlan虚拟接口
+   ip addr add 192.168.5.250/24 brd + dev mac0 # 为mac0 分配ip地址
+   ip link set mac0 up
+   ip route del default #删除默认路由
+   ip route add default via 192.168.5.254 dev mac0 # 设置静态路由
+   echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
+   ```
+
+* 永久配置网络（重启也能生效）
+
+   * 使用 nmcli (推荐）
+
+      `nmcli connection add type macvlan dev eth0 mode bridge ifname mac30 ipv4.route-metric 10 ipv6.route-metric 10 autoconnect yes save yes`
+
+      如果想自定义 ip 及网关，可执行：
+
+      `nmcli connection add type macvlan dev eth0 mode bridge ifname mac30 ipv4.route-metric 10 ipv6.route-metric 10 ipv4.method manual ip4 192.168.5.250/24 gw4 192.168.5.254 autoconnect yes save yes`
+
+      注意：需使用更低的 `metric` 来提高 `default` 路由的优先级
+
+   * 宿主机（Debian）修改网络配置：`vi /etc/network/interface`
+
+      以下配置不支持网线热插拔，热插拔后需手动重启网络。可借用 `ifplugd` 解决（操作不详）
+
+      将：
+   
+      ```
+      auto eth0
+      iface eth0 inet static
+      address 192.168.5.250
+      broadcast 192.168.5.255
+      netmask 255.255.255.0
+      gateway 192.168.5.254
+      dns-nameservers 192.168.5.254
+      ```
+   
+      修改为：
+   
+      ```
+      auto eth0
+      iface eth0 inet manual
+   
+      auto macvlan
+      iface macvlan inet static
+      metric 10
+      address 192.168.5.250
+      netmask 255.255.255.0
+      gateway 192.168.5.254
+      dns-nameservers 192.168.5.254
+      	pre-up ip link add $IFACE link eth0 type macvlan mode bridge
+      	post-down ip link del $IFACE link eth0 type macvlan mode bridge
+      ```
+   
+      或
+   
+      ```
+      auto eth0
+      iface eth0 inet manual
+   
+      auto macvlan
+      iface macvlan inet manual
+      	#pre-up ip monitor link dev eth0 | grep -q 'state UP'
+      	pre-up while ! ip link show eth0 | grep -q 'state UP'; do echo "waiting for eth0 is ready"; sleep 2; done
+      	pre-up while ! ip route show | grep -q '^default'; do echo "waiting eth0 got required rules"; sleep 2; done
+      	pre-up while ! ip route show | grep -q '192.168.5.0/24 dev eth0'; do echo "waiting eth0 got required rules"; sleep 2; done
+      	pre-up ip link add $IFACE link eth0 type macvlan mode bridge
+      	pre-up ip addr add 192.168.5.250/24 brd + dev $IFACE
+      	up ip link set $IFACE up
+      	#up udevadm trigger
+      	post-up ip route del default
+      	post-up ip route del 192.168.5.0/24 dev eth0
+      	post-up ip route add default via 192.168.5.254 dev $IFACE
+      	post-down ip link del dev $IFACE
+      	down ifdown eth0
+      	down ifup eth0
+      ```
+   
+      修改完后重启网络  `systemctl restart networking` 或者重启系统查看效果。
+
+
 **参考资料**
 
 配置文件
 
 [https://lancellc.gitbook.io/clash/whats-new/clash-tun-mode/clash-tun-mode-2/setup-for-redir-host-mode](https://lancellc.gitbook.io/clash/whats-new/clash-tun-mode/clash-tun-mode-2/setup-for-redir-host-mode)
 
-
 路由及防火墙设置
 
 [kr328-clash-setup-scripts](https://github.com/h0cheung/kr328-clash-setup-scripts)
 
 overturn DNS
+
 [overturn + clash in docker as dns server and transparent proxy gateway](https://gist.github.com/killbus/69fdabdd1d8ae8f4030f4f96307ffa1b)
+
+宿主机配置
+
+https://github.com/fanyh123/tproxy-gateway
