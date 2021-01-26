@@ -1,0 +1,29 @@
+version: "3.4"
+
+services:
+  clash_tp:
+    container_name: clash_tp
+    image: ghcr.io/silencebay/clash-tproxy:premium-latest
+    privileged: true
+    logging:
+      options:
+        max-size: '10m'
+        max-file: '3'
+    restart: unless-stopped
+    volumes:
+      - ./clash_config:/clash_config
+    environment:
+      - TZ=Asia/Shanghai
+      - EN_MODE=redir-host
+    cap_add:
+      - NET_ADMIN
+    networks:
+      dMACvLAN:
+        ipv4_address: 192.168.5.254
+    dns:
+      - 114.114.114.114
+
+networks:
+  dMACvLan:
+    external:
+      name: dMACvLan
