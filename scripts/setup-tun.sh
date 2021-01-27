@@ -73,3 +73,5 @@ else
 fi
 
 ip addr
+
+fireqos start

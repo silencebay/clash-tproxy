@@ -33,6 +33,7 @@ COPY --from=builder /go/Country.mmdb /root/.config/clash/
 COPY config.yaml.example /root/.config/clash/config.yaml
 COPY entrypoint.sh /usr/local/bin/
 COPY scripts/setup-tun.sh /usr/lib/clash/setup-tun.sh
+COPY fireqos.conf /etc/firehol/fireqos.conf
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 
