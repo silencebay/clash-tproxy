@@ -2,6 +2,8 @@ FROM --platform=$TARGETPLATFORM golang:alpine AS builder
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+
 RUN apk add --no-cache curl jq
 
 WORKDIR /go
@@ -17,10 +19,12 @@ RUN set -eux; \
     \
     curl -L -O https://github.com/Dreamacro/maxmind-geoip/releases/latest/download/Country.mmdb;
 
+
 FROM --platform=$TARGETPLATFORM alpine AS runtime
 LABEL org.opencontainers.image.source https://silencebay@github.com/silencebay/clash-tproxy.git
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
+ARG FIREQOS_VERSION=latest
 
 # RUN echo "https://mirror.tuna.tsinghua.edu.cn/alpine/v3.11/main/" > /etc/apk/repositories
 
@@ -30,31 +34,97 @@ COPY config.yaml.example /root/.config/clash/config.yaml
 COPY entrypoint.sh /usr/local/bin/
 COPY scripts/setup-tun.sh /usr/lib/clash/setup-tun.sh
 
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+
+# fireqos
+## iprange
+WORKDIR /src
 RUN set -eux; \
-    \
-    chmod a+x /usr/local/bin/clash /usr/local/bin/entrypoint.sh /usr/lib/clash/setup-tun.sh; \
-    apk add --no-cache libcap; \
-    # dumped by `pscap` of package `libcap-ng-utils`
-    setcap cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap,cap_net_admin=+ep /usr/local/bin/clash; \
-    runDeps=' \
-        iptables \
-        ip6tables \
-        ipset \
+    buildDeps=" \
+        jq \
+        git \
+        autoconf \
+        automake \
+        libtool \
+        help2man \
+        build-base \
+        bash \
         iproute2 \
+        ip6tables \
+        iptables \
+    "; \
+    runDeps=" \
+        bash \
+        iproute2 \
+        ip6tables \
+        iptables \
+        ipset \
+        libcap \
+        # for debug
         curl \
         bind-tools \
-        # eudev \
-    '; \
-    apk add --no-cache \
-        $runDeps \
-        bash \
         bash-doc \
         bash-completion \
+        # eudev \
+    "; \
+    \
+    apk add --no-cache --virtual .build-deps \
+        $buildDeps \
+        $runDeps \
     ; \
     \
-    rm -rf /var/cache/apk/*
+    \
+    git clone https://github.com/firehol/iprange; \
+    cd iprange; \
+    ./autogen.sh; \
+    ./configure \
+		--prefix=/usr \
+		--sysconfdir=/etc/ssh \
+		--datadir=/usr/share/openssh \
+		--libexecdir=/usr/lib/ssh \
+		--disable-man \
+		--enable-maintainer-mode \
+    ; \
+    make; \
+    make install; \
+    \
+    \
+    ## fireqos
+    \
+    cd /src; \
+    git clone https://github.com/firehol/firehol; \
+    cd firehol; \
+    tag=${FIREQOS_VERSION:-latest}; \
+    if [ "${tag}" = "latest" ]; then tag=$(curl -L --silent https://api.github.com/repos/firehol/firehol/releases/latest | jq -r .tag_name); fi; \
+    git checkout $tag; \
+    ./autogen.sh; \
+    ./configure \
+        CHMOD=chmod \
+		--prefix=/usr \
+		--sysconfdir=/etc \
+		--disable-firehol \
+		--disable-link-balancer \
+		--disable-update-ipsets \
+		--disable-vnetbuild \
+        --disable-doc \
+        --disable-man \
+    ; \
+    make; \
+    make install; \
+    \
+    apk add --no-network --virtual .run-deps \
+        $runDeps \
+    ; \
+    apk del .build-deps; \
+    rm -rf /src; \
+    \
+    \
+    # clash
+    \
+    chmod a+x /usr/local/bin/* /usr/lib/clash/setup-tun.sh; \
+    # dumped by `pscap` of package `libcap-ng-utils`
+    setcap cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap,cap_net_admin=+ep /usr/local/bin/clash
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
 
 WORKDIR /clash_config
 
