@@ -2,7 +2,7 @@ FROM --platform=$TARGETPLATFORM golang:alpine AS builder
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+# RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 RUN apk add --no-cache curl jq
 
@@ -35,7 +35,7 @@ COPY entrypoint.sh /usr/local/bin/
 COPY scripts/setup-tun.sh /usr/lib/clash/setup-tun.sh
 COPY fireqos.conf /etc/firehol/fireqos.conf
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+# RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # fireqos
 ## iprange
