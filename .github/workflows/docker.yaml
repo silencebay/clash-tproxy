@@ -64,6 +64,8 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/clash-tproxy:premium-${{ steps.version.outputs.result }}
             ghcr.io/silencebay/clash-tproxy:premium-latest
             ghcr.io/silencebay/clash-tproxy:premium-${{ steps.version.outputs.result }}
+          build-args: |
+            FIREQOS_VERSION=${{ secrets.FIREQOS_VERSION }}
           cache-from: type=local,src=/tmp/.buildx-cache
           # first run does not export the cache
 
@@ -82,5 +84,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/clash-tproxy:premium-${{ steps.version.outputs.result }}
             ghcr.io/silencebay/clash-tproxy:premium-latest
             ghcr.io/silencebay/clash-tproxy:premium-${{ steps.version.outputs.result }}
+          build-args: |
+            FIREQOS_VERSION=${{ secrets.FIREQOS_VERSION }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
