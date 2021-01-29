@@ -2,7 +2,12 @@
 
 set -e
 
-/usr/lib/clash/setup-tun.sh &
+if [ -n "EN_MODE_TUN" ]; then
+    #TUN模式
+    /usr/lib/clash/setup-tun.sh &
+else
+    /usr/lib/clash/setup-tproxy.sh
+fi
 
 #开启转发
 echo "1" > /proc/sys/net/ipv4/ip_forward
