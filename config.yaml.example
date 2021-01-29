@@ -80,7 +80,7 @@ tun:
 # This section is optional. When not present, the DNS server will be disabled.
 dns:
   enable: true
-  listen: 0.0.0.0:1053
+  listen: 0.0.0.0:1053 # or 53 while in tproxy mode
   # ipv6: false # when the false, response to AAAA questions will be empty
 
   # These nameservers are used to resolve the DNS nameserver hostnames below.
