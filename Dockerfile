@@ -32,9 +32,7 @@ COPY --from=builder /go/clash /usr/local/bin/
 COPY --from=builder /go/Country.mmdb /root/.config/clash/
 COPY config.yaml.example /root/.config/clash/config.yaml
 COPY entrypoint.sh /usr/local/bin/
-COPY scripts/common.sh /usr/lib/clash/common.sh
-COPY scripts/setup-tun.sh /usr/lib/clash/setup-tun.sh
-COPY scripts/setup-tproxy.sh /usr/lib/clash/setup-tproxy.sh
+COPY scripts/* /usr/lib/clash/
 COPY fireqos.conf /etc/firehol/fireqos.conf
 
 # RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
