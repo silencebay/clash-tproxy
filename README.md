@@ -65,186 +65,371 @@
 
 ### TUN 模式
 
-docker-compose.yml
+<details>
+  <summary>docker-compose.yml</summary>
 
-```yaml
-version: "3.4"
+  ```yaml
+  version: "3.4"
 
-services:
-  clash_tp:
-    container_name: clash_tp
-    image: ghcr.io/silencebay/clash-tproxy:premium-latest
-    privileged: true
-    logging:
-      options:
-        max-size: '10m'
-        max-file: '3'
-    restart: unless-stopped
-    volumes:
-      - ./clash_config:/clash_config
-    environment:
-      - TZ=Asia/Shanghai
-      - EN_MODE=redir-host
-    cap_add:
-      - NET_ADMIN
-    networks:
-      dMACvLAN:
-        ipv4_address: 192.168.5.254
-    dns:
-      - 114.114.114.114
+  services:
+    clash_tp:
+      container_name: clash_tp
+      image: ghcr.io/silencebay/clash-tproxy:premium-latest
+      privileged: true
+      logging:
+        options:
+          max-size: '10m'
+          max-file: '3'
+      restart: unless-stopped
+      volumes:
+        - ./clash_config:/clash_config
+      environment:
+        - TZ=Asia/Shanghai
+        - EN_MODE=redir-host
+        - EN_MODE_TUN=1
+      cap_add:
+        - NET_ADMIN
+      networks:
+        dMACvLAN:
+          ipv4_address: 192.168.5.254
+      dns:
+        - 114.114.114.114
 
-networks:
-  dMACvLan:
-    external:
-      name: dMACvLan
-```
+  networks:
+    dMACvLan:
+      external:
+        name: dMACvLan
+  ```
+</details>
 
-clash config.yaml
+<details>
+  <summary>clash config.yaml</summary>
 
-```yaml
-# Port of HTTP(S) proxy server on the local end
-# port: 7890
+  ```yaml
+  # Port of HTTP(S) proxy server on the local end
+  # port: 7890
 
-# Port of SOCKS5 proxy server on the local end
-socks-port: 7891
+  # Port of SOCKS5 proxy server on the local end
+  socks-port: 7891
 
-# Transparent proxy server port for Linux and macOS
-# redir-port: 7892
+  # Transparent proxy server port for Linux and macOS
+  # redir-port: 7892
 
-# HTTP(S) and SOCKS5 server on the same port
-# mixed-port: 7890
+  # HTTP(S) and SOCKS5 server on the same port
+  # mixed-port: 7890
 
-# authentication of local SOCKS5/HTTP(S) server
-# authentication:
-#  - "user1:pass1"
-#  - "user2:pass2"
+  # authentication of local SOCKS5/HTTP(S) server
+  # authentication:
+  #  - "user1:pass1"
+  #  - "user2:pass2"
 
-# Set to true to allow connections to the local-end server from
-# other LAN IP addresses
-allow-lan: true
+  # Set to true to allow connections to the local-end server from
+  # other LAN IP addresses
+  allow-lan: true
 
-# This is only applicable when `allow-lan` is `true`
-# '*': bind all IP addresses
-# 192.168.122.11: bind a single IPv4 address
-# "[aaaa::a8aa:ff:fe09:57d8]": bind a single IPv6 address
-bind-address: "*"
+  # This is only applicable when `allow-lan` is `true`
+  # '*': bind all IP addresses
+  # 192.168.122.11: bind a single IPv4 address
+  # "[aaaa::a8aa:ff:fe09:57d8]": bind a single IPv6 address
+  bind-address: "*"
 
-# Clash router working mode
-# rule: rule-based packet routing
-# global: all packets will be forwarded to a single endpoint
-# direct: directly forward the packets to the Internet
-mode: rule
+  # Clash router working mode
+  # rule: rule-based packet routing
+  # global: all packets will be forwarded to a single endpoint
+  # direct: directly forward the packets to the Internet
+  mode: rule
 
-# Clash by default prints logs to STDOUT
-# info / warning / error / debug / silent
-log-level: debug
+  # Clash by default prints logs to STDOUT
+  # info / warning / error / debug / silent
+  log-level: debug
 
-# When set to false, resolver won't translate hostnames to IPv6 addresses
-ipv6: false
+  # When set to false, resolver won't translate hostnames to IPv6 addresses
+  ipv6: false
 
-# RESTful web API listening address
-external-controller: 0.0.0.0:9090
+  # RESTful web API listening address
+  external-controller: 0.0.0.0:9090
 
-# A relative path to the configuration directory or an absolute path to a
-# directory in which you put some static web resource. Clash core will then
-# serve it at `http://{{external-controller}}/ui`.
-# external-ui: dashboard
+  # A relative path to the configuration directory or an absolute path to a
+  # directory in which you put some static web resource. Clash core will then
+  # serve it at `http://{{external-controller}}/ui`.
+  # external-ui: dashboard
 
-# Secret for the RESTful API (optional)
-# Authenticate by spedifying HTTP header `Authorization: Bearer ${secret}`
-# ALWAYS set a secret if RESTful API is listening on 0.0.0.0
-# secret: ""
+  # Secret for the RESTful API (optional)
+  # Authenticate by spedifying HTTP header `Authorization: Bearer ${secret}`
+  # ALWAYS set a secret if RESTful API is listening on 0.0.0.0
+  # secret: ""
 
-# Outbound interface name
-# interface-name: en0
+  # Outbound interface name
+  # interface-name: en0
 
-# Static hosts for DNS server and connection establishment, only works
-# when `dns.enhanced-mode` is `redir-host`.
-#
-# Wildcard hostnames are supported (e.g. *.clash.dev, *.foo.*.example.com)
-# Non-wildcard domain names have a higher priority than wildcard domain names
-# e.g. foo.example.com > *.example.com > .example.com
-# P.S. +.foo.com equals to .foo.com and foo.com
-hosts:
-  # '*.clash.dev': 127.0.0.1
-  # '.dev': 127.0.0.1
-  # 'alpha.clash.dev': '::1'
-
-tun:
-  enable: true
-  stack: system # or gvisor
-  dns-hijack:
-    - 192.168.5.252
-  #   - 8.8.8.8:53
-  #   - tcp://8.8.8.8:53
-  # macOS-auto-route: true # auto set global route
-  # macOS-auto-detect-interface: true # conflict with interface-name
-
-# DNS server settings
-# This section is optional. When not present, the DNS server will be disabled.
-dns:
-  enable: true
-  listen: 0.0.0.0:1053
-  # ipv6: false # when the false, response to AAAA questions will be empty
-
-  # These nameservers are used to resolve the DNS nameserver hostnames below.
-  # Specify IP addresses only
-  default-nameserver:
-    - 192.168.5.252
-    # - 114.114.114.114
-    # - 8.8.8.8
-  enhanced-mode: redir-host # or fake-ip
-  fake-ip-range: 198.18.0.1/16 # Fake IP addresses pool CIDR
-  # use-hosts: true # lookup hosts and return IP record
-
-  # Hostnames in this list will not be resolved with fake IPs
-  # i.e. questions to these domain names will always be answered with their
-  # real IP addresses
-  # fake-ip-filter:
-  #   - '*.lan'
-  #   - localhost.ptlogin2.qq.com
-
-  # Supports UDP, TCP, DoT, DoH. You can specify the port to connect to.
-  # All DNS questions are sent directly to the nameserver, without proxies
-  # involved. Clash answers the DNS question with the first result gathered.
-  nameserver:
-    - 192.168.5.252
-    # - 114.114.114.114 # default value
-    # - 8.8.8.8 # default value
-    # - tls://dns.rubyfish.cn:853 # DNS over TLS
-    # - https://1.1.1.1/dns-query # DNS over HTTPS
-
-  # When `fallback` is present, the DNS server will send concurrent requests
-  # to the servers in this section along with servers in `nameservers`.
-  # The answers from fallback servers are used when the GEOIP country
-  # is not `CN`.
-  # fallback:
-  #   - tcp://1.1.1.1
-
-  # If IP addresses resolved with servers in `nameservers` are in the specified
-  # subnets below, they are considered invalid and results from `fallback`
-  # servers are used instead.
+  # Static hosts for DNS server and connection establishment, only works
+  # when `dns.enhanced-mode` is `redir-host`.
   #
-  # IP address resolved with servers in `nameserver` is used when
-  # `fallback-filter.geoip` is true and when GEOIP of the IP address is `CN`.
-  #
-  # If `fallback-filter.geoip` is false, results from `nameserver` nameservers
-  # are always used if not match `fallback-filter.ipcidr`.
-  #
-  # This is a countermeasure against DNS pollution attacks.
-  fallback-filter:
-    geoip: true
-    ipcidr:
-      # - 240.0.0.0/4
-    # domain:
-    #   - '+.google.com'
-    #   - '+.facebook.com'
-    #   - '+.youtube.com'
+  # Wildcard hostnames are supported (e.g. *.clash.dev, *.foo.*.example.com)
+  # Non-wildcard domain names have a higher priority than wildcard domain names
+  # e.g. foo.example.com > *.example.com > .example.com
+  # P.S. +.foo.com equals to .foo.com and foo.com
+  hosts:
+    # '*.clash.dev': 127.0.0.1
+    # '.dev': 127.0.0.1
+    # 'alpha.clash.dev': '::1'
 
-proxies:
+  tun:
+    enable: true
+    stack: system # or gvisor
+    dns-hijack:
+      - 192.168.5.252
+    #   - 8.8.8.8:53
+    #   - tcp://8.8.8.8:53
+    # macOS-auto-route: true # auto set global route
+    # macOS-auto-detect-interface: true # conflict with interface-name
+
+  # DNS server settings
+  # This section is optional. When not present, the DNS server will be disabled.
+  dns:
+    enable: true
+    listen: 0.0.0.0:1053
+    # ipv6: false # when the false, response to AAAA questions will be empty
+
+    # These nameservers are used to resolve the DNS nameserver hostnames below.
+    # Specify IP addresses only
+    default-nameserver:
+      - 192.168.5.252
+      # - 114.114.114.114
+      # - 8.8.8.8
+    enhanced-mode: redir-host # or fake-ip
+    fake-ip-range: 198.18.0.1/16 # Fake IP addresses pool CIDR
+    # use-hosts: true # lookup hosts and return IP record
+
+    # Hostnames in this list will not be resolved with fake IPs
+    # i.e. questions to these domain names will always be answered with their
+    # real IP addresses
+    # fake-ip-filter:
+    #   - '*.lan'
+    #   - localhost.ptlogin2.qq.com
+
+    # Supports UDP, TCP, DoT, DoH. You can specify the port to connect to.
+    # All DNS questions are sent directly to the nameserver, without proxies
+    # involved. Clash answers the DNS question with the first result gathered.
+    nameserver:
+      - 192.168.5.252
+      # - 114.114.114.114 # default value
+      # - 8.8.8.8 # default value
+      # - tls://dns.rubyfish.cn:853 # DNS over TLS
+      # - https://1.1.1.1/dns-query # DNS over HTTPS
+
+    # When `fallback` is present, the DNS server will send concurrent requests
+    # to the servers in this section along with servers in `nameservers`.
+    # The answers from fallback servers are used when the GEOIP country
+    # is not `CN`.
+    # fallback:
+    #   - tcp://1.1.1.1
+
+    # If IP addresses resolved with servers in `nameservers` are in the specified
+    # subnets below, they are considered invalid and results from `fallback`
+    # servers are used instead.
+    #
+    # IP address resolved with servers in `nameserver` is used when
+    # `fallback-filter.geoip` is true and when GEOIP of the IP address is `CN`.
+    #
+    # If `fallback-filter.geoip` is false, results from `nameserver` nameservers
+    # are always used if not match `fallback-filter.ipcidr`.
+    #
+    # This is a countermeasure against DNS pollution attacks.
+    fallback-filter:
+      geoip: true
+      ipcidr:
+        # - 240.0.0.0/4
+      # domain:
+      #   - '+.google.com'
+      #   - '+.facebook.com'
+      #   - '+.youtube.com'
+
+  proxies:
 
 ...
 ```
+</details>
+
+### TProxy 模式
+
+<details>
+  <summary>docker-compose.yml</summary>
+
+  ```yaml
+  version: "3.4"
+
+  services:
+    clash_tp:
+      container_name: clash_tp
+      image: ghcr.io/silencebay/clash-tproxy:premium-latest
+      privileged: true
+      logging:
+        options:
+          max-size: '10m'
+          max-file: '3'
+      restart: unless-stopped
+      volumes:
+        - ./clash_config:/clash_config
+      environment:
+        - TZ=Asia/Shanghai
+        - EN_MODE=redir-host
+      cap_add:
+        - NET_ADMIN
+      networks:
+        dMACvLAN:
+          ipv4_address: 192.168.5.254
+      dns:
+        - 114.114.114.114
+
+  networks:
+    dMACvLan:
+      external:
+        name: dMACvLan
+  ```
+</details>
+
+<details>
+  <summary>clash config.yaml</summary>
+
+  ```yaml
+  # Port of HTTP(S) proxy server on the local end
+  # port: 7890
+
+  # Port of SOCKS5 proxy server on the local end
+  socks-port: 7891
+
+  # Transparent proxy server port for Linux and macOS
+  # redir-port: 7892
+
+  # Transparent proxy server port for Linux (TProxy TCP and TProxy UDP)
+  tproxy-port: 7893
+
+  # HTTP(S) and SOCKS5 server on the same port
+  # mixed-port: 7890
+
+  # authentication of local SOCKS5/HTTP(S) server
+  # authentication:
+  #  - "user1:pass1"
+  #  - "user2:pass2"
+
+  # Set to true to allow connections to the local-end server from
+  # other LAN IP addresses
+  allow-lan: true
+
+  # This is only applicable when `allow-lan` is `true`
+  # '*': bind all IP addresses
+  # 192.168.122.11: bind a single IPv4 address
+  # "[aaaa::a8aa:ff:fe09:57d8]": bind a single IPv6 address
+  bind-address: "*"
+
+  # Clash router working mode
+  # rule: rule-based packet routing
+  # global: all packets will be forwarded to a single endpoint
+  # direct: directly forward the packets to the Internet
+  mode: rule
+
+  # Clash by default prints logs to STDOUT
+  # info / warning / error / debug / silent
+  log-level: debug
+
+  # When set to false, resolver won't translate hostnames to IPv6 addresses
+  ipv6: false
+
+  # RESTful web API listening address
+  external-controller: 0.0.0.0:9090
+
+  # A relative path to the configuration directory or an absolute path to a
+  # directory in which you put some static web resource. Clash core will then
+  # serve it at `http://{{external-controller}}/ui`.
+  # external-ui: dashboard
+
+  # Secret for the RESTful API (optional)
+  # Authenticate by spedifying HTTP header `Authorization: Bearer ${secret}`
+  # ALWAYS set a secret if RESTful API is listening on 0.0.0.0
+  # secret: ""
+
+  # Outbound interface name
+  # interface-name: en0
+
+  # Static hosts for DNS server and connection establishment, only works
+  # when `dns.enhanced-mode` is `redir-host`.
+  #
+  # Wildcard hostnames are supported (e.g. *.clash.dev, *.foo.*.example.com)
+  # Non-wildcard domain names have a higher priority than wildcard domain names
+  # e.g. foo.example.com > *.example.com > .example.com
+  # P.S. +.foo.com equals to .foo.com and foo.com
+  hosts:
+    # '*.clash.dev': 127.0.0.1
+    # '.dev': 127.0.0.1
+    # 'alpha.clash.dev': '::1'
+
+  # DNS server settings
+  # This section is optional. When not present, the DNS server will be disabled.
+  dns:
+    enable: true
+    listen: 0.0.0.0:53
+    # ipv6: false # when the false, response to AAAA questions will be empty
+
+    # These nameservers are used to resolve the DNS nameserver hostnames below.
+    # Specify IP addresses only
+    default-nameserver:
+      - 192.168.5.252
+      # - 114.114.114.114
+      # - 8.8.8.8
+    enhanced-mode: redir-host # or fake-ip
+    fake-ip-range: 198.18.0.1/16 # Fake IP addresses pool CIDR
+    # use-hosts: true # lookup hosts and return IP record
+
+    # Hostnames in this list will not be resolved with fake IPs
+    # i.e. questions to these domain names will always be answered with their
+    # real IP addresses
+    # fake-ip-filter:
+    #   - '*.lan'
+    #   - localhost.ptlogin2.qq.com
+
+    # Supports UDP, TCP, DoT, DoH. You can specify the port to connect to.
+    # All DNS questions are sent directly to the nameserver, without proxies
+    # involved. Clash answers the DNS question with the first result gathered.
+    nameserver:
+      - 192.168.5.252
+      # - 114.114.114.114 # default value
+      # - 8.8.8.8 # default value
+      # - tls://dns.rubyfish.cn:853 # DNS over TLS
+      # - https://1.1.1.1/dns-query # DNS over HTTPS
+
+    # When `fallback` is present, the DNS server will send concurrent requests
+    # to the servers in this section along with servers in `nameservers`.
+    # The answers from fallback servers are used when the GEOIP country
+    # is not `CN`.
+    # fallback:
+    #   - tcp://1.1.1.1
+
+    # If IP addresses resolved with servers in `nameservers` are in the specified
+    # subnets below, they are considered invalid and results from `fallback`
+    # servers are used instead.
+    #
+    # IP address resolved with servers in `nameserver` is used when
+    # `fallback-filter.geoip` is true and when GEOIP of the IP address is `CN`.
+    #
+    # If `fallback-filter.geoip` is false, results from `nameserver` nameservers
+    # are always used if not match `fallback-filter.ipcidr`.
+    #
+    # This is a countermeasure against DNS pollution attacks.
+    fallback-filter:
+      geoip: true
+      ipcidr:
+        # - 240.0.0.0/4
+      # domain:
+      #   - '+.google.com'
+      #   - '+.facebook.com'
+      #   - '+.youtube.com'
+
+  proxies:
+
+...
+```
+</details>
 
 ## 设置客户端
 设置客户端（或设置路由器DHCP）默认网关及DNS服务器为容器IP:192.168.5.254
