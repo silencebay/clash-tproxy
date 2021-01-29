@@ -2,7 +2,7 @@
 
 set -e
 
-if [ -n "EN_MODE_TUN" ]; then
+if [ -n "$EN_MODE_TUN" ]; then
     #TUN模式
     /usr/lib/clash/setup-tun.sh &
 else
