@@ -11,6 +11,13 @@ set_localnetwork() {
     fi
     IFS=',' read -ra LOCALNETWORK <<< "$LOCALNETWORK"
     ipset create localnetwork hash:net
+    # append local machine ip
+    hostnames=$(hostname -i)
+    IFS=' ' read -ra hostnames <<< "$hostnames"
+    for entry in "${hostnames[@]}"; do
+        LOCALNETWORK+=("$entry")
+    done
+
     for entry in "${LOCALNETWORK[@]}"; do
         log "[ipset] Adding '${entry}'"
         ipset add localnetwork ${entry}
