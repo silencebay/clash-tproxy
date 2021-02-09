@@ -9,8 +9,9 @@ else
     /usr/lib/clash/setup-tproxy.sh
 fi
 
-#开启转发
-echo "1" > /proc/sys/net/ipv4/ip_forward
+# 开启转发，需要 privileged
+# Deprecated! 容器默认已开启
+# echo "1" > /proc/sys/net/ipv4/ip_forward
 
 if [ ! -e '/clash_config/config.yaml' ]; then
     echo "init /clash_config/config.yaml"

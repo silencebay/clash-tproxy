@@ -4,7 +4,7 @@ services:
   clash_tp:
     container_name: clash_tp
     image: ghcr.io/silencebay/clash-tproxy:premium-latest
-    privileged: true
+    # privileged: true
     logging:
       options:
         max-size: '10m'
