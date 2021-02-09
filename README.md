@@ -14,15 +14,14 @@
 
 1. 运行容器
 
-    `sudo docker run --name clash_tp -d -v /your/path/clash_config:/clash_config  --network macnet --ip 192.168.5.254 --privileged zhangyi2018/clash_transparent_proxy`
+    `sudo docker run --name clash-tproxy -d -v /your/path/clash_config:/clash_config  --network macnet --ip 192.168.5.254 ghcr.io/silencebay/clash-tproxy:premium-latest`
 
     ```yaml
     version: '3.2'
     services:
-      clash_tp:
-        container_name: clash_tp
-        image: clash_tp
-        privileged: true
+      clash-tproxy:
+        container_name: clash-tproxy
+        image: ghcr.io/silencebay/clash-tproxy:premium-latest
         logging:
           options:
             max-size: '10m'
@@ -59,7 +58,7 @@
 1. 只在linux 测试过,win没试过, mac是不行, 第二步创建网络不行, docker自己的问题, 说不定以后哪天docker for mac支持了?
 
 ## 构建方法
-`docker buildx build --platform linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8 -t zhangyi2018/clash_transparent_proxy:1.0.7 -t zhangyi2018/clash_transparent_proxy:latest . --push`
+`docker buildx build --platform linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8 -t <your_username>/clash-tproxy:premium-latest . --push`
 
 ## clash 配置参考
 
@@ -72,10 +71,9 @@
   version: "3.4"
 
   services:
-    clash_tp:
-      container_name: clash_tp
+    clash-tproxy:
+      container_name: clash-tproxy
       image: ghcr.io/silencebay/clash-tproxy:premium-latest
-      privileged: true
       logging:
         options:
           max-size: '10m'
@@ -98,7 +96,7 @@
   networks:
     dMACvLan:
       external:
-        name: dMACvLan
+        name: macnet
   ```
 </details>
 
@@ -260,10 +258,9 @@
   version: "3.4"
 
   services:
-    clash_tp:
-      container_name: clash_tp
+    clash-tproxy:
+      container_name: clash-tproxy
       image: ghcr.io/silencebay/clash-tproxy:premium-latest
-      privileged: true
       logging:
         options:
           max-size: '10m'
@@ -285,7 +282,7 @@
   networks:
     dMACvLan:
       external:
-        name: dMACvLan
+        name: macnet
   ```
 </details>
 
@@ -550,6 +547,8 @@ echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
 
 
 **参考资料**
+
+[docker_global_transparent_proxy](https://github.com/YouYII/docker_global_transparent_proxy)
 
 配置文件
 

@@ -2,7 +2,8 @@ name: Publish Docker Image
 
 on:
   push:
-    branches: clash-premium
+    branches: 
+      - clash-premium
   schedule:
     # * is a special character in YAML so you have to quote this string
     - cron: "0 0 */3 * *"
