@@ -8,7 +8,9 @@
 
 1. docker创建网络,注意将网段改为你自己的
 
-    `docker network create -d macvlan --subnet=192.168.5.0/24 --gateway=192.168.5.1 -o parent=eth0 macnet`
+    `docker network create -d macvlan --subnet=192.168.5.0/24 --gateway=192.168.5.1 -o parent=eth0 _dMACvLan`
+
+    *`_` 是为了提高 `_dMACvLan` 的优先级，可在多网络容器的中作为默认路由。
 
 1. 提前准备好正确的clash config
 
@@ -36,6 +38,7 @@
           - EN_MODE=redir-host
         cap_add:
           - NET_ADMIN
+          - SYS_ADMIN
         networks:
           dMACvLAN:
             ipv4_address: 192.168.5.254
@@ -485,6 +488,29 @@ echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
       `nmcli connection add type macvlan dev eth0 mode bridge ifname mac30 ipv4.route-metric 10 ipv6.route-metric 10 ipv4.method manual ip4 192.168.5.250/24 gw4 192.168.5.254 autoconnect yes save yes`
 
       注意：需使用更低的 `metric` 来提高 `default` 路由的优先级
+
+      **另外，你可能需要修改 `dns`：**
+
+      `nmcli con mod macvlan-mac30 ipv4.dns "192.168.5.254"`
+
+      忽略 `eth0` 的 DHCP 自动获取的 dns:
+
+      `nmcli con mod <eth0-connectionName> ipv4.ignore-auto-dns yes`
+
+      **如果是 `ifupdown(eth0)`，先删除：**
+
+      1. `/etc/network/interfaces` 仅保留以下内容：
+
+        ```
+        auto lo
+        iface lo inet loopback
+        ```
+
+      2. `/etc/NetworkManager/NetworkManager.conf` 更改 **[ifupdown]** 条目中的 `managed` 值：
+         ```
+         [ifupdown]
+         managed=false
+         ```
 
    * 宿主机（Debian）修改网络配置：`vi /etc/network/interface`
 
