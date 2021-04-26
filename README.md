@@ -16,7 +16,7 @@
 
 1. 运行容器
 
-    `sudo docker run --name clash-tproxy -d -v /your/path/clash_config:/clash_config  --network macnet --ip 192.168.5.254 ghcr.io/silencebay/clash-tproxy:premium-latest`
+    `sudo docker run --name clash-tproxy -d -v /your/path/clash_config:/clash_config  --network _dMACvLan --ip 192.168.5.254 ghcr.io/silencebay/clash-tproxy:premium-latest`
 
     ```yaml
     version: '3.2'
@@ -49,7 +49,7 @@
     networks:
       dMACvLAN:
         external:
-          name: macnet
+          name: _dMACvLan
     ```
 
 1. 将手机/电脑等客户端 网关设置为容器ip,如192.168.5.254 ,dns也设置成这个
@@ -99,7 +99,7 @@
   networks:
     dMACvLan:
       external:
-        name: macnet
+        name: _dMACvLan
   ```
 </details>
 
@@ -285,7 +285,7 @@
   networks:
     dMACvLan:
       external:
-        name: macnet
+        name: _dMACvLan
   ```
 </details>
 
