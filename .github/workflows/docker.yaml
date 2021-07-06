@@ -15,13 +15,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      # - name: Get Clash version
+      #   id: version
+      #   run: |
+      #     sudo apt install jq
+      #     version=$(curl -LSs https://api.github.com/repos/Dreamacro/clash/releases/tags/premium | jq -r .name)
+      #     version=$(echo ${version##* })
+      #     echo "::set-output name=result::${version}"
       - name: Get Clash version
         id: version
         run: |
-          sudo apt install jq
-          version=$(curl -LSs https://api.github.com/repos/Dreamacro/clash/releases/tags/premium | jq -r .name)
-          version=$(echo ${version##* })
+          sudo apt install curl jq -y --no-install-recommends
+          clash_download_url=$(curl -L https://api.github.com/repos/Dreamacro/clash/releases/tags/premium | jq -r --arg architecture "linux-amd64" '.assets[] | select (.name | contains($architecture)) | .browser_download_url' -); \
+          curl -L $clash_download_url | gunzip - > clash;
+          chmod +x ./clash
+          version=$(./clash -v | awk '{print $2}')
+          [ $? -eq 0 ] || exit 1
           echo "::set-output name=result::${version}"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
         with:
