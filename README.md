@@ -38,7 +38,8 @@
           - EN_MODE=redir-host
         cap_add:
           - NET_ADMIN
-          - SYS_ADMIN
+        extra_hosts:
+          - 'baidu.com:220.181.38.251'
         networks:
           dMACvLAN:
             ipv4_address: 192.168.5.254
@@ -90,6 +91,8 @@
         - EN_MODE_TUN=1
       cap_add:
         - NET_ADMIN
+      extra_hosts:
+        - 'baidu.com:220.181.38.251'
       networks:
         dMACvLAN:
           ipv4_address: 192.168.5.254
@@ -276,6 +279,8 @@
         - EN_MODE=redir-host
       cap_add:
         - NET_ADMIN
+      extra_hosts:
+        - 'baidu.com:220.181.38.251'
       networks:
         dMACvLAN:
           ipv4_address: 192.168.5.254
@@ -426,6 +431,8 @@
       #   - '+.youtube.com'
 
   proxies:
+  rules:
+    - IP-CIDR,220.181.38.251/32,DIRECT
 
 ...
 ```
