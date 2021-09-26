@@ -22,17 +22,25 @@ jobs:
       #     version=$(curl -LSs https://api.github.com/repos/Dreamacro/clash/releases/tags/premium | jq -r .name)
       #     version=$(echo ${version##* })
       #     echo "::set-output name=result::${version}"
+      - name: Setup Dependencies
+        run: |
+          sudo apt install curl jq -y --no-install-recommends
       - name: Get Clash version
         id: version
         run: |
-          sudo apt install curl jq -y --no-install-recommends
           clash_download_url=$(curl -L https://api.github.com/repos/Dreamacro/clash/releases/tags/premium | jq -r --arg architecture "linux-amd64" '.assets[] | select (.name | contains($architecture)) | .browser_download_url' -); \
           curl -L $clash_download_url | gunzip - > clash;
           chmod +x ./clash
           version=$(./clash -v | awk '{print $2}')
           [ $? -eq 0 ] || exit 1
           echo "::set-output name=result::${version}"
-
+      - name: Get FireQOS version
+        id: fireqos_latest_version
+        env:
+          FIREQOS_VERSION: ${{ secrets.FIREQOS_VERSION }}
+        run: |
+          target_commitish=$(curl -LSs 'https://api.github.com/repos/firehol/firehol/releases/latest' | jq -r '.target_commitish')
+          ${{ env.FIREQOS_VERSION == '' }} || ${{ env.FIREQOS_VERSION == 'latest' }} && echo "::set-output name=target_commitish::${target_commitish}"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
         with:
@@ -78,6 +86,8 @@ jobs:
             ghcr.io/silencebay/clash-tproxy:premium-${{ steps.version.outputs.result }}
           build-args: |
             FIREQOS_VERSION=${{ secrets.FIREQOS_VERSION }}
+            FIREQOS_TARGET_COMMITISH=${{ steps.fireqos_latest_version.outputs.target_commitish }}
+            CLASH_VERSION=${{ steps.version.outputs.result }}
           cache-from: type=local,src=/tmp/.buildx-cache
           # first run does not export the cache
 
@@ -98,5 +108,7 @@ jobs:
             ghcr.io/silencebay/clash-tproxy:premium-${{ steps.version.outputs.result }}
           build-args: |
             FIREQOS_VERSION=${{ secrets.FIREQOS_VERSION }}
+            FIREQOS_TARGET_COMMITISH=${{ steps.fireqos_latest_version.outputs.target_commitish }}
+            CLASH_VERSION=${{ steps.version.outputs.result }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache

@@ -1,12 +1,16 @@
 FROM --platform=$TARGETPLATFORM golang:alpine AS builder
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
+ARG CLASH_VERSION
 
 # RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 RUN apk add --no-cache curl jq
 
 WORKDIR /go
+
+# Prevent cache
+# ADD https://api.github.com/repos/Dreamacro/clash/releases/tags/premium version.json
 RUN set -eux; \
     \
     if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then architecture="linux-amd64" ; fi; \
@@ -25,6 +29,7 @@ LABEL org.opencontainers.image.source https://silencebay@github.com/silencebay/c
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG FIREQOS_VERSION=latest
+ARG FIREQOS_TARGET_COMMITISH
 
 # RUN echo "https://mirror.tuna.tsinghua.edu.cn/alpine/v3.11/main/" > /etc/apk/repositories
 
