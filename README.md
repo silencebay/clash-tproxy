@@ -486,7 +486,7 @@ echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
 
 * 永久配置网络（重启也能生效）
 
-   * 使用 nmcli (推荐）
+   * 使用 nmcli，需要 `NetworkManager`
 
       `nmcli connection add type macvlan dev eth0 mode bridge ifname mac30 ipv4.route-metric 10 ipv6.route-metric 10 autoconnect yes save yes`
 
@@ -521,6 +521,8 @@ echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
 
    * 宿主机（Debian）修改网络配置：`vi /etc/network/interface`
 
+      *请先禁用 `NetworkManager`
+
       以下配置不支持网线热插拔，热插拔后需手动重启网络。可借用 `ifplugd` 解决（操作不详）
 
       将：
@@ -537,20 +539,38 @@ echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
    
       修改为：
    
-      ```
-      auto eth0
-      iface eth0 inet manual
-   
-      auto macvlan
-      iface macvlan inet static
-      metric 10
-      address 192.168.5.250
-      netmask 255.255.255.0
-      gateway 192.168.5.254
-      dns-nameservers 192.168.5.254
-      	pre-up ip link add $IFACE link eth0 type macvlan mode bridge
-      	post-down ip link del $IFACE link eth0 type macvlan mode bridge
-      ```
+      * dhcp
+
+        ```
+        auto eth0
+        iface eth0 inet dhcp
+
+        auto macvlan
+        iface macvlan inet dhcp
+          pre-up route del default
+          pre-up route del -net 192.168.5.0 netmask 255.255.255.0
+          pre-up ip link add $IFACE link eth0 type macvlan mode bridge
+          post-up echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
+          post-down ip link del $IFACE link eth0 type macvlan mode bridge
+        ```
+
+      * 静态
+
+        ```
+        auto eth0
+        iface eth0 inet manual
+        metric 100
+
+        auto macvlan
+        iface macvlan inet static
+        metric 10
+        address 192.168.5.250
+        netmask 255.255.255.0
+        gateway 192.168.5.254
+        dns-nameservers 192.168.5.254
+          pre-up ip link add $IFACE link eth0 type macvlan mode bridge
+          post-down ip link del $IFACE link eth0 type macvlan mode bridge
+        ```
    
       或
    
