@@ -550,6 +550,7 @@ echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
           pre-up route del default
           pre-up route del -net 192.168.5.0 netmask 255.255.255.0
           pre-up ip link add $IFACE link eth0 type macvlan mode bridge
+          post-up ip r replace default via 192.168.5.254
           post-up echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
           post-down ip link del $IFACE link eth0 type macvlan mode bridge
         ```
