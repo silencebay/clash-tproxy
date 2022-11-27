@@ -14,7 +14,7 @@ WORKDIR /go
 RUN set -eux; \
     \
     if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then architecture="linux-amd64" ; fi; \
-    if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then architecture="linux-armv8" ; fi; \
+    if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then architecture="linux-arm64" ; fi; \
     if [ "${TARGETPLATFORM}" = "linux/arm/v7" ] ; then architecture="linux-armv7" ; fi; \
     clash_download_url=$(curl -L https://api.github.com/repos/Dreamacro/clash/releases/tags/premium | jq -r --arg architecture "$architecture" '.assets[] | select (.name | contains($architecture)) | .browser_download_url' -); \
     curl -L $clash_download_url | gunzip - > clash;
