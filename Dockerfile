@@ -31,6 +31,8 @@ ARG BUILDPLATFORM
 ARG FIREQOS_VERSION=latest
 ARG FIREQOS_TARGET_COMMITISH
 ENV FAKE_IP_RANGE=198.18.0.1/16
+# ENV DOCKER_HOST_INTERNAL=172.17.0.0/16,eth0
+ENV DOCKER_HOST_INTERNAL=
 
 # RUN echo "https://mirror.tuna.tsinghua.edu.cn/alpine/v3.11/main/" > /etc/apk/repositories
 

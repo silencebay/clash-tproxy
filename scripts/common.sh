@@ -1,8 +1,6 @@
 #!/bin/bash
 
-log() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*"
-}
+source /usr/lib/clash/log.sh
 
 set_localnetwork() {
     log "[ipset] Setting localnetwork"

@@ -599,6 +599,19 @@ echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
    
       修改完后重启网络  `systemctl restart networking` 或者重启系统查看效果。
 
+## 与 `docker0` 通信
+
+```yaml
+version: "3.4"
+
+services:
+  clash-tproxy:
+    ...
+    environment:
+      - DOCKER_HOST_INTERNAL=172.17.0.0/16,eth0
+      # or without interface specified. Will find the interface with the shortest path
+      # - DOCKER_HOST_INTERNAL=172.17.0.0/16
+```
 
 **参考资料**
 

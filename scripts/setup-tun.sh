@@ -48,6 +48,10 @@ else
     iptables -t nat -I PREROUTING -p udp --dport 53 -j REDIRECT --to "$PROXY_DNS_PORT"
 fi
 
+# > Handle DOCKER_HOST_INTERNAL
+log "[DOCKER_HOST_INTERNAL] setting route"
+source /usr/lib/clash/setup-docker-host-route.sh
+
 ip addr
 
 fireqos start
