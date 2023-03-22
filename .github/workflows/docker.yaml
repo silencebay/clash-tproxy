@@ -1,0 +1,103 @@
+name: Publish Docker Image for meta branch
+
+on:
+  push:
+    branches: 
+      - meta
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron: "0 0 */3 * *"
+  workflow_dispatch:
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: latest
+        platforms: linux/arm64,linux/arm/v7,linux/amd64
+
+  release-cgo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: latest
+        platforms: linux/arm64,linux/amd64
+        compiled_with: cgo
+
+  release-compatible:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: latest
+        platforms: linux/amd64
+        compiled_with: compatible
+
+  prerelease-alpha:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: prerelease-alpha
+        platforms: linux/arm64,linux/arm/v7,linux/amd64
+
+  prerelease-alpha-cgo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: prerelease-alpha
+        platforms: linux/arm64,linux/amd64
+        compiled_with: cgo
+
+  prerelease-alpha-compatible:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: prerelease-alpha
+        platforms: linux/amd64
+        compiled_with: compatible
+
+  prerelease-meta:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: prerelease-meta
+        platforms: linux/arm64,linux/arm/v7,linux/amd64
+
+  prerelease-meta-cgo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: prerelease-meta
+        platforms: linux/arm64,linux/amd64
+        compiled_with: cgo
+
+  prerelease-meta-compatible:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions
+      with:
+        tag: prerelease-meta
+        platforms: linux/amd64
+        compiled_with: compatible
