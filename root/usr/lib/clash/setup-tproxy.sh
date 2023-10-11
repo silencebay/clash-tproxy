@@ -69,6 +69,4 @@ echo "nameserver 127.0.0.1" >>/etc/resolv.conf
 log "[DOCKER_HOST_INTERNAL] setting route"
 source /usr/lib/clash/setup-docker-host-route.sh
 
-# > Apply QOS
-log "[fireqos] Appling QOS"
-fireqos start
+log "Done"
