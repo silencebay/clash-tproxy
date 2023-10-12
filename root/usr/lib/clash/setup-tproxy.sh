@@ -53,7 +53,7 @@ fi
 log "[DNS] Setting local machine dns"
 while true; do
     log "[DNS] Waiting for clash getting ready"
-    curl -Ss http://baidu.com >/dev/null
+    curl -Ss http://www.tsinghua.edu.cn >/dev/null
     [ $? -eq 0 ] && break
     sleep 1
 done
@@ -69,6 +69,4 @@ echo "nameserver 127.0.0.1" >>/etc/resolv.conf
 log "[DOCKER_HOST_INTERNAL] setting route"
 source /usr/lib/clash/setup-docker-host-route.sh
 
-# > Apply QOS
-log "[fireqos] Appling QOS"
-fireqos start
+log "Done"

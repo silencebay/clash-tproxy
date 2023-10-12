@@ -23,7 +23,7 @@ set_localnetwork() {
     log "[ipset] setting process done."
 }
 
-readonly PROXY_BYPASS_USER="nobody"
+readonly PROXY_BYPASS_USER="abc"
 # readonly PROXY_BYPASS_CGROUP="0x100000"
 readonly PROXY_FWMARK="0x1"
 readonly PROXY_ROUTE_TABLE="0x1"

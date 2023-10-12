@@ -54,4 +54,4 @@ source /usr/lib/clash/setup-docker-host-route.sh
 
 ip addr
 
-fireqos start
+log "Done"
