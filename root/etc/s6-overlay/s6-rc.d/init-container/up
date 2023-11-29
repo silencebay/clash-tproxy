@@ -1,0 +1,10 @@
+#!/command/execlineb -P
+
+with-contenv
+
+with-contenv
+pipeline {
+    fdmove -c 2 1
+    init-container-up.sh
+}
+mawk -W interactive "{printf \"%c[36m[init-container]%c[0m %s\\n\", 27, 27, $0}"
