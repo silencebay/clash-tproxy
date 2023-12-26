@@ -1,4 +1,4 @@
-#!/command/with-contenv bash
+#!/bin/bash
 
 shopt -s globstar
 for i in /usr/local/bin/init-container-up-*.sh; do # Whitespace-safe and recursive
