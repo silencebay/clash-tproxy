@@ -1,5 +1,5 @@
 # docker_global_transparent_proxy
-使用clash +docker 进行路由转发实现全局透明代理
+使用mihomo +docker 进行路由转发实现全局透明代理
 
 ## 食用方法
 1. 开启混杂模式
@@ -12,18 +12,18 @@
 
     *`_` 是为了提高 `_dMACvLan` 的优先级，可在多网络容器的中作为默认路由。
 
-1. 提前准备好正确的clash config
+1. 提前准备好正确的mihomo config
 
 1. 运行容器
 
-    `sudo docker run --name clash-tproxy -d -v /your/path/clash_config:/clash_config  --network _dMACvLan --ip 192.168.5.254 ghcr.io/silencebay/clash-tproxy:premium-latest`
+    `sudo docker run --name mihomo-tproxy -d -v /your/path/mihomo_config:/mihomo_config  --network _dMACvLan --ip 192.168.5.254 ghcr.io/silencebay/mihomo-tproxy:premium-latest`
 
     ```yaml
     version: '3.2'
     services:
-      clash-tproxy:
-        container_name: clash-tproxy
-        image: ghcr.io/silencebay/clash-tproxy:premium-latest
+      mihomo-tproxy:
+        container_name: mihomo-tproxy
+        image: ghcr.io/silencebay/mihomo-tproxy:premium-latest
         logging:
           options:
             max-size: '10m'
@@ -32,7 +32,7 @@
         #entrypoint: tail -f /dev/null
         #command: tail -f /dev/null
         volumes:
-          - ./clash_config:/clash_config
+          - ./mihomo_config:/mihomo_config
         environment:
           - TZ=Asia/Shanghai
           - EN_MODE=redir-host
@@ -62,9 +62,9 @@
 1. 只在linux 测试过,win没试过, mac是不行, 第二步创建网络不行, docker自己的问题, 说不定以后哪天docker for mac支持了?
 
 ## 构建方法
-`docker buildx build --platform linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8 -t <your_username>/clash-tproxy:premium-latest . --push`
+`docker buildx build --platform linux/386,linux/amd64,linux/arm/v7,linux/arm64/v8 -t <your_username>/mihomo-tproxy:premium-latest . --push`
 
-## clash 配置参考
+## mihomo 配置参考
 
 ### TUN 模式
 
@@ -75,16 +75,16 @@
   version: "3.4"
 
   services:
-    clash-tproxy:
-      container_name: clash-tproxy
-      image: ghcr.io/silencebay/clash-tproxy:premium-latest
+    mihomo-tproxy:
+      container_name: mihomo-tproxy
+      image: ghcr.io/silencebay/mihomo-tproxy:premium-latest
       logging:
         options:
           max-size: '10m'
           max-file: '3'
       restart: unless-stopped
       volumes:
-        - ./clash_config:/clash_config
+        - ./mihomo_config:/mihomo_config
       environment:
         - TZ=Asia/Shanghai
         - EN_MODE=redir-host
@@ -107,7 +107,7 @@
 </details>
 
 <details>
-  <summary>clash config.yaml</summary>
+  <summary>mihomo config.yaml</summary>
 
   ```yaml
   # Port of HTTP(S) proxy server on the local end
@@ -169,14 +169,14 @@
   # Static hosts for DNS server and connection establishment, only works
   # when `dns.enhanced-mode` is `redir-host`.
   #
-  # Wildcard hostnames are supported (e.g. *.clash.dev, *.foo.*.example.com)
+  # Wildcard hostnames are supported (e.g. *.mihomo.dev, *.foo.*.example.com)
   # Non-wildcard domain names have a higher priority than wildcard domain names
   # e.g. foo.example.com > *.example.com > .example.com
   # P.S. +.foo.com equals to .foo.com and foo.com
   hosts:
-    # '*.clash.dev': 127.0.0.1
+    # '*.mihomo.dev': 127.0.0.1
     # '.dev': 127.0.0.1
-    # 'alpha.clash.dev': '::1'
+    # 'alpha.mihomo.dev': '::1'
 
   tun:
     enable: true
@@ -264,16 +264,16 @@
   version: "3.4"
 
   services:
-    clash-tproxy:
-      container_name: clash-tproxy
-      image: ghcr.io/silencebay/clash-tproxy:premium-latest
+    mihomo-tproxy:
+      container_name: mihomo-tproxy
+      image: ghcr.io/silencebay/mihomo-tproxy:premium-latest
       logging:
         options:
           max-size: '10m'
           max-file: '3'
       restart: unless-stopped
       volumes:
-        - ./clash_config:/clash_config
+        - ./mihomo_config:/mihomo_config
       environment:
         - TZ=Asia/Shanghai
         - EN_MODE=redir-host
@@ -295,7 +295,7 @@
 </details>
 
 <details>
-  <summary>clash config.yaml</summary>
+  <summary>mihomo config.yaml</summary>
 
   ```yaml
   # Port of HTTP(S) proxy server on the local end
@@ -360,14 +360,14 @@
   # Static hosts for DNS server and connection establishment, only works
   # when `dns.enhanced-mode` is `redir-host`.
   #
-  # Wildcard hostnames are supported (e.g. *.clash.dev, *.foo.*.example.com)
+  # Wildcard hostnames are supported (e.g. *.mihomo.dev, *.foo.*.example.com)
   # Non-wildcard domain names have a higher priority than wildcard domain names
   # e.g. foo.example.com > *.example.com > .example.com
   # P.S. +.foo.com equals to .foo.com and foo.com
   hosts:
-    # '*.clash.dev': 127.0.0.1
+    # '*.mihomo.dev': 127.0.0.1
     # '.dev': 127.0.0.1
-    # 'alpha.clash.dev': '::1'
+    # 'alpha.mihomo.dev': '::1'
 
   # DNS server settings
   # This section is optional. When not present, the DNS server will be disabled.
@@ -605,7 +605,7 @@ echo "nameserver 192.168.5.254" > /etc/resolv.conf # 设置静态dns服务器
 version: "3.4"
 
 services:
-  clash-tproxy:
+  mihomo-tproxy:
     ...
     environment:
       - DOCKER_HOST_INTERNAL=172.17.0.0/16,eth0
@@ -619,15 +619,15 @@ services:
 
 配置文件
 
-[https://lancellc.gitbook.io/clash/whats-new/clash-tun-mode/clash-tun-mode-2/setup-for-redir-host-mode](https://lancellc.gitbook.io/clash/whats-new/clash-tun-mode/clash-tun-mode-2/setup-for-redir-host-mode)
+[https://lancellc.gitbook.io/mihomo/whats-new/mihomo-tun-mode/mihomo-tun-mode-2/setup-for-redir-host-mode](https://lancellc.gitbook.io/mihomo/whats-new/mihomo-tun-mode/mihomo-tun-mode-2/setup-for-redir-host-mode)
 
 路由及防火墙设置
 
-[kr328-clash-setup-scripts](https://github.com/h0cheung/kr328-clash-setup-scripts)
+[kr328-mihomo-setup-scripts](https://github.com/h0cheung/kr328-mihomo-setup-scripts)
 
 overturn DNS
 
-[overturn + clash in docker as dns server and transparent proxy gateway](https://gist.github.com/killbus/69fdabdd1d8ae8f4030f4f96307ffa1b)
+[overturn + mihomo in docker as dns server and transparent proxy gateway](https://gist.github.com/killbus/69fdabdd1d8ae8f4030f4f96307ffa1b)
 
 宿主机配置
 

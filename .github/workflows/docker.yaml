@@ -1,9 +1,9 @@
-name: Publish Docker Image for meta branch
+name: Publish Docker Image for mihomo branch
 
 on:
   push:
     branches: 
-      - meta
+      - mihomo
   schedule:
     # * is a special character in YAML so you have to quote this string
     - cron: "0 0 */3 * *"

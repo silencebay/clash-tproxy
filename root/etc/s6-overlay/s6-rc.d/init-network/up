@@ -3,6 +3,6 @@
 with-contenv
 pipeline {
     fdmove -c 2 1
-    /usr/lib/clash/init-network.sh
+    /usr/lib/mihomo/init-network.sh
 }
 mawk -W interactive "{printf \"%c[32m[init-network]%c[0m %s\\n\", 27, 27, $0}"

@@ -1,5 +1,5 @@
 name: Build
-description: Build clash image
+description: Build mihomo image
 inputs:
   tag:
     description: release tag
@@ -29,16 +29,16 @@ runs:
                 "prerelease-alpha")  release_endpoint="tags/Prerelease-Alpha" ;;
                 "prerelease-meta") release_endpoint="tags/Prerelease-Meta" ;;
         esac
-        res=$(curl -LSs "https://api.github.com/repos/MetaCubeX/Clash.Meta/releases/${release_endpoint}?per_page=1")
+        res=$(curl -LSs "https://api.github.com/repos/MetaCubeX/mihomo/releases/${release_endpoint}?per_page=1")
         asset=$(echo "$res" | jq -r --arg architecture "linux-amd64" '.assets | map(select(.name | contains($architecture))) | first')
-        clash_download_url=$(echo "$asset" | jq -r '.browser_download_url' -)
-        clash_updated_at=$(echo "$asset" | jq -r '.updated_at' -)
-        curl -L $clash_download_url | gunzip - > clash
-        chmod +x ./clash
-        version=$(./clash -v | head -n 1 | awk '{print $3}')
+        mihomo_download_url=$(echo "$asset" | jq -r '.browser_download_url' -)
+        mihomo_updated_at=$(echo "$asset" | jq -r '.updated_at' -)
+        curl -L $mihomo_download_url | gunzip - > mihomo
+        chmod +x ./mihomo
+        version=$(./mihomo -v | head -n 1 | awk '{print $3}')
         [ $? -eq 0 ] || exit 1
         echo "result=${version}" >> $GITHUB_OUTPUT
-        echo "updated-at=${clash_updated_at}" >> $GITHUB_OUTPUT
+        echo "updated-at=${mihomo_updated_at}" >> $GITHUB_OUTPUT
       shell: bash
     - name: Get docker image tags
       id: docker-tags
@@ -46,22 +46,22 @@ runs:
         TAG: ${{ inputs.tag }}
         COMPILED_WITH: ${{ inputs.compiled_with }}
       run: |
-        clash_version=${{ steps.version.outputs.result }}
-        clash_version="${clash_version#v}"
+        mihomo_version=${{ steps.version.outputs.result }}
+        mihomo_version="${mihomo_version#v}"
         case ${TAG} in
           "latest")
                                 TAG=""
-                                clash_version="-${clash_version}" ;;
+                                mihomo_version="-${mihomo_version}" ;;
           "prerelease-alpha")  
                                 TAG="-alpha"
-                                clash_version="" ;;
+                                mihomo_version="" ;;
           "prerelease-meta")   
                                 TAG="-meta"
-                                clash_version="" ;;
+                                mihomo_version="" ;;
         esac;
         [ -n "${COMPILED_WITH}" ] && COMPILED_WITH="-${COMPILED_WITH}"
-        tags="${{ env.DOCKERHUB_USERNAME }}/clash-tproxy:meta${TAG}${COMPILED_WITH}${clash_version},ghcr.io/${{ github.actor }}/clash-tproxy:meta${TAG}${COMPILED_WITH}${clash_version}"
-        [ -z "${TAG}" ] && tags="${tags},${{ env.DOCKERHUB_USERNAME }}/clash-tproxy:meta${TAG}${COMPILED_WITH}-latest,ghcr.io/${{ github.actor }}/clash-tproxy:meta${TAG}${COMPILED_WITH}-latest"
+        tags="${{ env.DOCKERHUB_USERNAME }}/clash-tproxy:mihomo${TAG}${COMPILED_WITH}${mihomo_version},ghcr.io/${{ github.actor }}/clash-tproxy:mihomo${TAG}${COMPILED_WITH}${mihomo_version}"
+        [ -z "${TAG}" ] && tags="${tags},${{ env.DOCKERHUB_USERNAME }}/clash-tproxy:mihomo${TAG}${COMPILED_WITH}-latest,ghcr.io/${{ github.actor }}/clash-tproxy:mihomo${TAG}${COMPILED_WITH}-latest"
         echo "result=${tags}" >> $GITHUB_OUTPUT
       shell: bash
     - name: Get FireQOS version
@@ -119,8 +119,8 @@ runs:
           FIREQOS_VERSION=${{ env.FIREQOS_VERSION }}
           FIREQOS_UPDATED_AT=${{ steps.fireqos-latest-version.outputs.updated-at }}
           RELEASE_TAG=${{ inputs.tag }}
-          CLASH_UPDATED_AT=${{ steps.version.outputs.updated-at }}
-          CLASH_VERSION=${{ steps.version.outputs.result }}
+          MIHOMO_UPDATED_AT=${{ steps.version.outputs.updated-at }}
+          MIHOMO_VERSION=${{ steps.version.outputs.result }}
           COMPILED_WITH=${{ inputs.compiled_with }}
         cache-from: type=local,src=/tmp/.buildx-cache/${{ inputs.tag }}/${{ inputs.compiled_with }}
         # first run does not export the cache
@@ -141,8 +141,8 @@ runs:
           FIREQOS_VERSION=${{ env.FIREQOS_VERSION }}
           FIREQOS_UPDATED_AT=${{ steps.fireqos-latest-version.outputs.updated-at }}
           RELEASE_TAG=${{ inputs.tag }}
-          CLASH_UPDATED_AT=${{ steps.version.outputs.updated-at }}
-          CLASH_VERSION=${{ steps.version.outputs.result }}
+          MIHOMO_UPDATED_AT=${{ steps.version.outputs.updated-at }}
+          MIHOMO_VERSION=${{ steps.version.outputs.result }}
           COMPILED_WITH=${{ inputs.compiled_with }}
         cache-from: type=local,src=/tmp/.buildx-cache/${{ inputs.tag }}/${{ inputs.compiled_with }}
         cache-to: type=local,dest=/tmp/.buildx-cache/${{ inputs.tag }}/${{ inputs.compiled_with }}

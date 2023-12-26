@@ -3,6 +3,6 @@
 with-contenv
 pipeline {
     fdmove -c 2 1
-    /usr/lib/clash/init-fireqos.sh
+    /usr/lib/mihomo/init-fireqos.sh
 }
 mawk -W interactive "{printf \"%c[34m[init-fireqos]%c[0m %s\\n\", 27, 27, $0}"

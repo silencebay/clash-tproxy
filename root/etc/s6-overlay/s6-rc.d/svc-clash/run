@@ -1,8 +1,0 @@
-#!/usr/bin/with-contenv bash
-# shellcheck shell=bash
-
-# `su` changes some environment variables, including HOME, we don't need that as the `-d` option is used
-# su abc -c "/app/clash.sh"
-exec \
-    s6-setuidgid abc \
-        /app/clash.sh

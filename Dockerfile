@@ -7,8 +7,8 @@ ENV ROOTFS=/root-out
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG RELEASE_TAG
-ARG CLASH_VERSION
-ARG CLASH_UPDATED_AT
+ARG MIHOMO_VERSION
+ARG MIHOMO_UPDATED_AT
 ARG COMPILED_WITH
 # set version for s6 overlay
 ARG S6_OVERLAY_VERSION="3.1.5.0"
@@ -21,10 +21,10 @@ RUN apk add --no-cache curl jq
 WORKDIR $ROOTFS
 
 # Prevent cache
-# ADD https://api.github.com/repos/MetaCubeX/Clash.Meta/releases version.json
+# ADD https://api.github.com/repos/MetaCubeX/mihomo/releases version.json
 RUN set -eux; \
     \
-    mkdir -p "${ROOTFS}/config/clash" \
+    mkdir -p "${ROOTFS}/config/mihomo" \
         ${ROOTFS}/usr/local/bin \
     ; \
     \
@@ -40,16 +40,16 @@ RUN set -eux; \
         "linux/arm/v7") architecture="linux-armv7" ;; \
     esac; \
     \
-    res=$(curl -LSs "https://api.github.com/repos/MetaCubeX/Clash.Meta/releases/${release_endpoint}?per_page=1"); \
+    res=$(curl -LSs "https://api.github.com/repos/MetaCubeX/mihomo/releases/${release_endpoint}?per_page=1"); \
     assets=$(echo "${res}" | jq -r --arg architecture "$architecture" '.assets | map(select(.name | contains($architecture)))'); \
     if [ -z "${COMPILED_WITH}" ]; then \
-        clash_download_url=$(echo "${assets}" | jq -r '. | sort_by(.name | length) | first | .browser_download_url' -); \
+        mihomo_download_url=$(echo "${assets}" | jq -r '. | sort_by(.name | length) | first | .browser_download_url' -); \
     else \
-        clash_download_url=$(echo "${assets}" | jq -r --arg compiled_with "${COMPILED_WITH}" '.[] | select(.name | contains($compiled_with)) | .browser_download_url' -); \
+        mihomo_download_url=$(echo "${assets}" | jq -r --arg compiled_with "${COMPILED_WITH}" '.[] | select(.name | contains($compiled_with)) | .browser_download_url' -); \
     fi; \
-    curl -L "${clash_download_url}" | gunzip - > "${ROOTFS}/usr/local/bin/clash"; \
+    curl -L "${mihomo_download_url}" | gunzip - > "${ROOTFS}/usr/local/bin/mihomo"; \
     \
-    cd "${ROOTFS}/config/clash"; \
+    cd "${ROOTFS}/config/mihomo"; \
     curl -L -O https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/country.mmdb; \
     curl -L -O https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat; \
     curl -L -O https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.dat; \
@@ -108,10 +108,10 @@ ENV HOME="/config" \
 
 COPY --from=rootfs-stage /root-out/ /
 # Seems like a nested hidden folder won't be copied by build-push-action@v4
-# the file placed in /root/.config/clash/config.yaml.example will never be copy by `COPY root/. /`
+# the file placed in /root/.config/mihomo/config.yaml.example will never be copy by `COPY root/. /`
 # Just put the config.yaml out of that hidden folder and copy it.
 # But We don't create another layer here, so the config.yaml.example file should have been copied from the builder
-# COPY config.yaml.example /root/.config/clash/config.yaml
+# COPY config.yaml.example /root/.config/mihomo/config.yaml
 
 # fireqos
 ## iprange
@@ -198,9 +198,9 @@ RUN set -eux; \
     \
     echo "**** setup permisions ****"; \
     chown -R abc:users /config; \
-    chmod a+x /app/* /usr/local/bin/* /usr/lib/clash/*; \
+    chmod a+x /app/* /usr/local/bin/* /usr/lib/mihomo/*; \
 # dumped by `pscap` of package `libcap-ng-utils`
-    setcap cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap,cap_net_admin=+ep /usr/local/bin/clash
+    setcap cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap,cap_net_admin=+ep /usr/local/bin/mihomo
 
 WORKDIR $HOME
 
