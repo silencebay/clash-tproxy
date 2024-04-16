@@ -31,6 +31,7 @@ runs:
         esac
         res=$(curl -LSs "https://api.github.com/repos/MetaCubeX/mihomo/releases/${release_endpoint}?per_page=1")
         asset=$(echo "$res" | jq -r --arg architecture "linux-amd64" '.assets | map(select(.name | contains($architecture))) | first')
+        asset=$(echo "$res" | jq -r --arg architecture "linux-amd64" '.assets | map(select((.name | contains($architecture)) and (.name | endswith(".gz"))) ) | first')
         mihomo_download_url=$(echo "$asset" | jq -r '.browser_download_url' -)
         mihomo_updated_at=$(echo "$asset" | jq -r '.updated_at' -)
         curl -L $mihomo_download_url | gunzip - > mihomo

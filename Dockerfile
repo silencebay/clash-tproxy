@@ -41,7 +41,7 @@ RUN set -eux; \
     esac; \
     \
     res=$(curl -LSs "https://api.github.com/repos/MetaCubeX/mihomo/releases/${release_endpoint}?per_page=1"); \
-    assets=$(echo "${res}" | jq -r --arg architecture "$architecture" '.assets | map(select(.name | contains($architecture)))'); \
+    assets=$(echo "$res" | jq -r --arg architecture "$architecture" '.assets | map(select((.name | contains($architecture)) and (.name | endswith(".gz"))))'); \
     if [ -z "${COMPILED_WITH}" ]; then \
         mihomo_download_url=$(echo "${assets}" | jq -r '. | sort_by(.name | length) | first | .browser_download_url' -); \
     else \
