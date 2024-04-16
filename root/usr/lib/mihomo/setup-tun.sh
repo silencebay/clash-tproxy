@@ -14,6 +14,7 @@ if [ "${EN_MODE:-fake-ip}" = "fake-ip" ]; then
     ip addr add "$TUN_NET" dev "$TUN_DEV"
 else
     set_localnetwork
+    set_takeovernetwork
 
     #/opt/script/setup-mihomo-cgroup.sh
 
@@ -26,6 +27,7 @@ else
     iptables -t mangle -A MIHOMO -m owner --uid-owner "$PROXY_BYPASS_USER" -j RETURN
     iptables -t mangle -A MIHOMO -p tcp --dport 53 -j MARK --set-mark "$PROXY_FWMARK"
     iptables -t mangle -A MIHOMO -p udp --dport 53 -j MARK --set-mark "$PROXY_FWMARK"
+    iptables -t mangle -A MIHOMO -m set --match-set takeovernetwork dst -j MARK --set-mark "$PROXY_FWMARK"
 
     #iptables -t mangle -A MIHOMO -m owner --uid-owner systemd-timesync -j RETURN
     #iptables -t mangle -A MIHOMO -m cgroup --cgroup "$PROXY_BYPASS_CGROUP" -j RETURN

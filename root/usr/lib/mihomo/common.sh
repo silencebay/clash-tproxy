@@ -7,20 +7,35 @@ set_localnetwork() {
     if [ -z "${LOCALNETWORK}" ]; then
         LOCALNETWORK="127.0.0.0/8,10.0.0.0/8,192.168.0.0/16,224.0.0.0/4,172.16.0.0/12"
     fi
-    IFS=',' read -ra LOCALNETWORK <<< "$LOCALNETWORK"
+    IFS=',' read -ra LOCALNETWORK <<<"$LOCALNETWORK"
     ipset create localnetwork hash:net
     # append local machine ip
     hostnames=$(hostname -i)
-    IFS=' ' read -ra hostnames <<< "$hostnames"
+    IFS=' ' read -ra hostnames <<<"$hostnames"
     for entry in "${hostnames[@]}"; do
         LOCALNETWORK+=("$entry")
     done
 
     for entry in "${LOCALNETWORK[@]}"; do
-        log "[ipset] Adding '${entry}'"
+        log "[ipset] Adding '${entry}' for LOCALNETWORK"
         ipset add localnetwork ${entry}
     done
-    log "[ipset] setting process done."
+    log "[ipset] setting localnetwork process done."
+}
+
+set_takeovernetwork() {
+    log "[ipset] Setting takeovernetwork"
+    ipset create takeovernetwork hash:net
+    if [ -z "${TAKEOVERNETWORK}" ]; then
+        # Just return
+        return
+    fi
+    IFS=',' read -ra TAKEOVERNETWORK <<<"$TAKEOVERNETWORK"
+    for entry in "${TAKEOVERNETWORK[@]}"; do
+        log "[ipset] Adding '${entry}' for TAKEOVERNETWORK"
+        ipset add takeovernetwork ${entry}
+    done
+    log "[ipset] setting takeovernetwork process done."
 }
 
 readonly PROXY_BYPASS_USER="abc"

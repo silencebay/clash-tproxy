@@ -8,11 +8,15 @@ ip route add local default dev lo table 100
 
 # > 本机流量
 set_localnetwork
+#> 接管网络
+set_takeovernetwork
 
 # > LOCAL CLIENTS
 log "[iptables] Setting rules for local clients"
 iptables -t mangle -N MIHOMO
 iptables -t mangle -A MIHOMO -m addrtype --dst-type BROADCAST -j RETURN
+iptables -t mangle -A MIHOMO -m set --match-set takeovernetwork dst -p tcp -j TPROXY --on-port 7893 --tproxy-mark "${PROXY_FWMARK}"
+iptables -t mangle -A MIHOMO -m set --match-set takeovernetwork dst -p udp -j TPROXY --on-port 7893 --tproxy-mark "${PROXY_FWMARK}"
 iptables -t mangle -A MIHOMO -m set --match-set localnetwork dst -j RETURN
 # >> prevent dns redirect
 iptables -t mangle -A MIHOMO -p udp --dport 53 -j RETURN
@@ -28,6 +32,7 @@ iptables -t mangle -A PREROUTING -j MIHOMO
 log "[iptables] Setting rules for local machine"
 iptables -t mangle -N MIHOMO_MASK
 iptables -t mangle -A MIHOMO_MASK -m addrtype --dst-type BROADCAST -j RETURN
+iptables -t mangle -A MIHOMO_MASK -m set --match-set takeovernetwork dst -j MARK --set-mark "${PROXY_FWMARK}"
 iptables -t mangle -A MIHOMO_MASK -m set --match-set localnetwork dst -j RETURN
 iptables -t mangle -A MIHOMO_MASK -d 255.255.255.255/32 -j RETURN
 iptables -t mangle -A MIHOMO_MASK -p udp --dport 53 -j RETURN
