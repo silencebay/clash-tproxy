@@ -25,23 +25,24 @@ WORKDIR $ROOTFS
 RUN set -eux; \
     \
     mkdir -p "${ROOTFS}/config/mihomo" \
-        ${ROOTFS}/usr/local/bin \
+        "${ROOTFS}/usr/local/bin" \
     ; \
     \
-    case ${RELEASE_TAG} in \
+    case "${RELEASE_TAG}" in \
         "prerelease-alpha")  release_endpoint="tags/Prerelease-Alpha" ;; \
         "prerelease-meta")   release_endpoint="tags/Prerelease-Meta" ;; \
         *)                   release_endpoint="latest"; \
     esac; \
     \
-    case ${TARGETPLATFORM} in \
+    case "${TARGETPLATFORM}" in \
         "linux/amd64")  architecture="linux-amd64"  ;; \
         "linux/arm64")  architecture="linux-arm64" ;; \
         "linux/arm/v7") architecture="linux-armv7" ;; \
     esac; \
     \
     res=$(curl -LSs "https://api.github.com/repos/MetaCubeX/mihomo/releases/${release_endpoint}?per_page=1"); \
-    assets=$(echo "$res" | jq -r --arg architecture "$architecture" '.assets | map(select((.name | contains($architecture)) and (.name | endswith(".gz"))))'); \
+    assets=$(echo "${res}" | jq -r --arg architecture "${architecture}" '.assets | map(select((.name | contains($architecture)) and (.name | endswith(".gz"))))'); \
+    \
     if [ -z "${COMPILED_WITH}" ]; then \
         mihomo_download_url=$(echo "${assets}" | jq -r '. | sort_by(.name | length) | first | .browser_download_url' -); \
     else \
@@ -55,7 +56,7 @@ RUN set -eux; \
     curl -L -O https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.dat; \
     \
 # Add s6 overlay
-    case ${TARGETPLATFORM} in \
+    case "${TARGETPLATFORM}" in \
         "linux/amd64")  s6_overlay_arch="x86_64" ;; \
         "linux/arm64")  s6_overlay_arch="aarch64" ;; \
         "linux/arm/v7") s6_overlay_arch="armhf" ;; \
