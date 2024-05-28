@@ -35,7 +35,7 @@ if [ "${DOCKER_HOST_INTERNAL}x" != "x" ]; then
         done
         # Check if a minimum hop count was found
         if [ $min_hop -eq 1000 ]; then
-            log "Unable to reach $DOCKER_HOST_INTERNAL from any network interface"
+            warning "Unable to reach $DOCKER_HOST_INTERNAL from any network interface"
         else
             ip r add $DOCKER_HOST_INTERNAL dev $min_iface
         fi

@@ -2,76 +2,108 @@
 
 source /usr/lib/mihomo/common.sh
 
-# > ROUTE RULES
-ip rule add fwmark "${PROXY_FWMARK}" table 100
-ip route add local default dev lo table 100
+bypass_ip4=$(get_bypass_ip4)
+[ -n "${bypass_ip4}" ] &&
+  bypass_ip4_rule="ip daddr { $(join ", " ${bypass_ip4}) } meta mark != ${PROXY_FWMARK} accept comment \"Bypass IPv4 addresses\""
 
-# > 本机流量
-set_localnetwork
-#> 接管网络
-set_takeovernetwork
+bypass_ip6=$(get_bypass_ip6)
+[ -n "${bypass_ip6}" ] &&
+  bypass_ip6_rule="ip6 daddr { $(join ", " ${bypass_ip6}) } meta mark != ${PROXY_FWMARK} accept comment \"Bypass IPv6 addresses\""
 
-# > LOCAL CLIENTS
-log "[iptables] Setting rules for local clients"
-iptables -t mangle -N MIHOMO
-iptables -t mangle -A MIHOMO -m addrtype --dst-type BROADCAST -j RETURN
-iptables -t mangle -A MIHOMO -m set --match-set takeovernetwork dst -p tcp -j TPROXY --on-port 7893 --tproxy-mark "${PROXY_FWMARK}"
-iptables -t mangle -A MIHOMO -m set --match-set takeovernetwork dst -p udp -j TPROXY --on-port 7893 --tproxy-mark "${PROXY_FWMARK}"
-iptables -t mangle -A MIHOMO -m set --match-set localnetwork dst -j RETURN
-# >> prevent dns redirect
-iptables -t mangle -A MIHOMO -p udp --dport 53 -j RETURN
-# >> prevent zerotier redirect
-iptables -t mangle -A MIHOMO -p udp --dport 9993 -j RETURN
-# [ "${EN_MODE:-fake-ip}" = "fake-ip" ] && iptables -t mangle -A MIHOMO -d "${FAKE_IP_RANGE}" -j MARK --set-mark $PROXY_FWMARK
-iptables -t mangle -A MIHOMO -p udp -j TPROXY --on-port 7893 --tproxy-mark "${PROXY_FWMARK}"
-iptables -t mangle -A MIHOMO -p tcp -j TPROXY --on-port 7893 --tproxy-mark "${PROXY_FWMARK}"
-# >> REDIRECT
-iptables -t mangle -A PREROUTING -j MIHOMO
+takeover_ip4=$(get_takeover_ip4)
+[ -n "${takeover_ip4}" ] &&
+  takeover_ip4_rule="ip daddr { $(join ", " ${takeover_ip4}) } meta mark set ${PROXY_FWMARK} comment \"Takeover IPv4 addresses\""
 
-# > LOCAL MACHINE
-log "[iptables] Setting rules for local machine"
-iptables -t mangle -N MIHOMO_MASK
-iptables -t mangle -A MIHOMO_MASK -m addrtype --dst-type BROADCAST -j RETURN
-iptables -t mangle -A MIHOMO_MASK -m set --match-set takeovernetwork dst -j MARK --set-mark "${PROXY_FWMARK}"
-iptables -t mangle -A MIHOMO_MASK -m set --match-set localnetwork dst -j RETURN
-iptables -t mangle -A MIHOMO_MASK -d 255.255.255.255/32 -j RETURN
-iptables -t mangle -A MIHOMO_MASK -p udp --dport 53 -j RETURN
-iptables -t mangle -A MIHOMO_MASK -p udp --dport 9993 -j RETURN
-iptables -t mangle -A MIHOMO_MASK -m owner --uid-owner "${PROXY_BYPASS_USER}" -j RETURN
-iptables -t mangle -A MIHOMO_MASK -j RETURN -m mark --mark 0xff
-# [ "${EN_MODE:-fake-ip}" = "fake-ip" ] && iptables -t mangle -A MIHOMO_MASK -d "${FAKE_IP_RANGE}" -j MARK --set-mark $PROXY_FWMARK
-iptables -t mangle -A MIHOMO_MASK -p udp -j MARK --set-mark "${PROXY_FWMARK}"
-iptables -t mangle -A MIHOMO_MASK -p tcp -j MARK --set-mark "${PROXY_FWMARK}"
-# >> REDIRECT OUTPUT CHAIN
-iptables -t mangle -A OUTPUT -j MIHOMO_MASK
+takeover_ip6=$(get_takeover_ip6)
+[ -n "${takeover_ip6}" ] &&
+  takeover_ip6_rule="ip6 daddr { $(join ", " ${takeover_ip6}) } meta mark set ${PROXY_FWMARK} comment \"Takeover IPv6 addresses\""
 
-# > 新建 DIVERT 规则，避免已有连接的包二次通过 TPROXY，理论上有一定的性能提升
-# 同时解决无法访问已接管的私有地址(如：不在 localnetwork 中的地址) 的问题
-if [ "${EN_MODE:-fake-ip}" = "redir-host" ]; then
-    iptables -t mangle -N DIVERT
-    iptables -t mangle -A DIVERT -j MARK --set-mark "${PROXY_FWMARK}"
-    iptables -t mangle -A DIVERT -j ACCEPT
-    iptables -t mangle -I PREROUTING -p tcp -m socket -j DIVERT
-fi
+set_rules() {
+  ip rule add fwmark "${PROXY_FWMARK}" table 104
+  #ip route add local default dev lo table 104
+  ip route add local 0.0.0.0/0 dev lo table 104
 
-# > LOCAL MACHINE DNS
-log "[DNS] Setting local machine dns"
-while true; do
+  if test "${ENABLE_IPV6_ROUTE:-false}" == true; then
+    ip -6 rule add fwmark "${PROXY_FWMARK}" table 106
+    #ip -6 route add local default dev lo table 106
+    ip -6 route add local ::/0 dev lo table 106
+  fi
+
+  nft -f - <<EOF
+table inet $NFT_TABLE {
+  chain $NFT_PREROUTING_CHAIN {
+    type filter hook prerouting priority mangle; policy accept;
+    #meta l4proto { tcp, udp } th dport 53 tproxy to :$PROXY_TPROXY_PORT accept comment "Transparent DNS proxy"
+    meta l4proto { tcp, udp } th dport 53 accept
+    tcp dport $PROXY_TPROXY_PORT reject with tcp reset comment "Rejecting direct access to tproxy port"
+    udp dport $PROXY_TPROXY_PORT reject with icmp port-unreachable comment "Rejecting direct access to tproxy port"
+    $takeover_ip4_rule
+    $takeover_ip6_rule
+    $bypass_ip4_rule
+    $bypass_ip6_rule
+    meta mark "${PROXY_ROUTING_MARK}" accept comment "Bypass traffic originated from this machine's mihomo"
+    meta l4proto tcp socket transparent 1 meta mark set $PROXY_FWMARK accept comment "Bypass established transparent proxy connections"
+    meta l4proto { tcp, udp } tproxy to :$PROXY_TPROXY_PORT meta mark set $PROXY_FWMARK comment "Transparent proxy for other traffic"
+  }
+
+  chain $NFT_OUTPUT_CHAIN {
+    type route hook output priority mangle; policy accept;
+    oifname != eth0 accept comment "Process only traffic from specified network interface (bypass traffic internal to this machine, e.g., loopback, etc.)"
+    meta mark "${PROXY_ROUTING_MARK}" accept comment "Bypass traffic originated from this machine's mihomo"
+    meta skuid "${PROXY_BYPASS_USER_ID}" accept comment "Bypass traffic originated from user abc (owner of mihomo process)"
+    #meta l4proto { tcp, udp } th dport 53 meta mark set $PROXY_FWMARK accept comment "DNS rerouting to prerouting"
+    meta l4proto { tcp, udp } th dport 53 accept
+    udp dport { netbios-ns, netbios-dgm, netbios-ssn } accept comment "Bypass NBNS traffic"
+    $takeover_ip4_rule
+    $takeover_ip6_rule
+    $bypass_ip4_rule
+    $bypass_ip6_rule
+    meta l4proto { tcp, udp } meta mark set $PROXY_FWMARK comment "Reroute other traffic to prerouting"
+  }
+}
+EOF
+
+  if test "${ENABLE_REDIRECT_DNS:-false}" == true; then
+    nft -f - <<EOF
+table inet $NFT_TABLE {
+  chain dstnat {
+    type nat hook prerouting priority dstnat; policy accept;
+    meta l4proto { tcp, udp } th dport 53 redirect to :53 comment "mihomo DNS Hijack"
+  }
+}
+EOF
+  fi
+}
+
+set_dns() {
+  # > LOCAL MACHINE DNS
+  log "[DNS] Setting local machine dns"
+  while true; do
     log "[DNS] Waiting for mihomo getting ready"
     curl -Ss http://www.tsinghua.edu.cn >/dev/null
     [ $? -eq 0 ] && break
     sleep 1
-done
-while cat /proc/mounts | grep overlay | grep /etc/resolv.conf &>/dev/null; do umount /etc/resolv.conf &>/dev/null; done
-temp_resolv_conf=$(mktemp)
-chmod 0644 $temp_resolv_conf
-mount -o bind $temp_resolv_conf /etc/resolv.conf
-rm -f $temp_resolv_conf
-echo "# Generated by setup-tproxy.sh at $(date '+%F %T')" >/etc/resolv.conf
-echo "nameserver 127.0.0.1" >>/etc/resolv.conf
+  done
+  while cat /proc/mounts | grep overlay | grep /etc/resolv.conf &>/dev/null; do umount /etc/resolv.conf &>/dev/null; done
+  temp_resolv_conf=$(mktemp)
+  chmod 0644 $temp_resolv_conf
+  mount -o bind $temp_resolv_conf /etc/resolv.conf
+  rm -f $temp_resolv_conf
+  echo "# Generated by setup-tproxy.sh at $(date '+%F %T')" >/etc/resolv.conf
+  echo "nameserver 127.0.0.1" >>/etc/resolv.conf
+}
 
-# > Handle DOCKER_HOST_INTERNAL
-log "[DOCKER_HOST_INTERNAL] setting route"
-source /usr/lib/mihomo/setup-docker-host-route.sh
+set_docker_host_internal() {
+  # > Handle DOCKER_HOST_INTERNAL
+  log "[DOCKER_HOST_INTERNAL] setting route"
+  source /usr/lib/mihomo/setup-docker-host-route.sh
+}
 
-log "Done"
+main() {
+  set_rules
+  set_dns
+  set_docker_host_internal
+  log "Done"
+}
+
+main

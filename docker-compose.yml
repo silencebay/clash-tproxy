@@ -3,7 +3,7 @@ version: "3.4"
 services:
   mihomo_tp:
     container_name: mihomo_tp
-    image: ghcr.io/silencebay/mihomo-tproxy:premium-latest
+    image: ghcr.io/silencebay/clash-tproxy:mihomo-latest
     # privileged: true
     logging:
       options:
@@ -11,18 +11,40 @@ services:
         max-file: '3'
     restart: unless-stopped
     volumes:
-      - ./mihomo_config:/mihomo_config
+      - ./mihomo_config:/config/mihomo
+      - ./radvd.conf:/etc/radvd.conf:ro
     environment:
       - TZ=Asia/Shanghai
-      - EN_MODE=redir-host
+      - EN_MODE=fake-ip
+      # - ENABLE_REDIRECT_DNS=true
+      # - ENABLE_IPV6_ROUTE=true
+      # - ENABLE_RADVD=true
+      # - DISABLE_ROUTE_MONITOR=false
       # - FAKE_IP_RANGE=198.18.0.1/16
-      #- LOCALNETWORK=127.0.0.0/8,10.0.0.0/8,192.168.0.0/16,224.0.0.0/4,172.16.0.0/12
+      # - BYPASS_IP4=127.0.0.0/8,10.0.0.0/8,192.168.0.0/16,224.0.0.0/4,172.16.0.0/12
+      # - BYPASS_IP6=::1/128,fe80::/10,fc00::/7
+      # - TAKEOVER_IP4=100.64.0.0/10
+      # - TAKEOVER_IP6=
     cap_add:
       - NET_ADMIN
       - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    sysctls:
+      - net.ipv4.ip_forward=1
+      # Enable IPv6
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv6.conf.all.forwarding=1
+      - net.ipv6.conf.eth0.proxy_ndp=1
+      - net.ipv6.conf.default.forwarding=1
+      - net.ipv6.conf.default.proxy_ndp=1
+      - net.ipv6.conf.eth0.accept_ra=2
+      - net.ipv6.conf.eth0.accept_ra_min_hop_limit=1
+      - net.ipv6.conf.eth0.hop_limit=64
     networks:
       dMACvLAN:
         ipv4_address: 192.168.5.254
+        ipv6_address: fde9:3c73:932d::fe
     dns:
       - 114.114.114.114
 

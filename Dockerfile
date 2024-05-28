@@ -102,8 +102,19 @@ ENV FAKE_IP_RANGE=198.18.0.1/16
 ENV DOCKER_HOST_INTERNAL=
 ENV REMOVE_IPV6_HOSTS=true
 ENV HOME="/config" \
+  ## s6-overlay
+  S6_VERBOSITY=1 \
+  # Fails the container if any service fails to start
+  S6_BEHAVIOUR_IF_STAGE2_FAILS="2" \
+  # Waits for all services to start before running CMD
+  S6_CMD_WAIT_FOR_SERVICES="1" \
+  # Honors the timeout-up for each service
   S6_CMD_WAIT_FOR_SERVICES_MAXTIME="0" \
-  S6_VERBOSITY=1
+  # Honors container's environment variables on CMD
+  S6_KEEP_ENV="1" \
+  # Applies services conditions to decide which services should start
+  S6_STAGE2_HOOK="/apply_services_conditions.sh"
+
 # RUN echo "https://mirror.tuna.tsinghua.edu.cn/alpine/v3.11/main/" > /etc/apk/repositories
 # RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
@@ -139,10 +150,10 @@ RUN set -eux; \
         bash \
         mawk \
         iproute2 \
-        ip6tables \
-        iptables \
+        nftables \
         ipset \
         libcap \
+        radvd \
         # for debug
         curl \
         bind-tools \
@@ -205,4 +216,5 @@ RUN set -eux; \
 
 WORKDIR $HOME
 
-ENTRYPOINT ["/init"]
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD []

@@ -632,3 +632,7 @@ overturn DNS
 宿主机配置
 
 https://github.com/fanyh123/tproxy-gateway
+
+IPv6 Router Preferences and More-Specific Routes (RFC 4191)
+
+https://blog.ihipop.com/2022/09/5343.html
