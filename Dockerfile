@@ -46,7 +46,7 @@ RUN set -eux; \
     if [ -z "${COMPILED_WITH}" ]; then \
         mihomo_download_url=$(echo "${assets}" | jq -r '. | sort_by(.name | length) | first | .browser_download_url' -); \
     else \
-        mihomo_download_url=$(echo "${assets}" | jq -r --arg compiled_with "${COMPILED_WITH}" '.[] | select(.name | contains($compiled_with)) | .browser_download_url' -); \
+        mihomo_download_url=$(echo "${assets}" | jq -r --arg compiled_with "${COMPILED_WITH}" '[.[] | select(.name | contains($compiled_with))] | sort_by(.name | length) | first | .browser_download_url' -); \
     fi; \
     curl -L "${mihomo_download_url}" | gunzip - > "${ROOTFS}/usr/local/bin/mihomo"; \
     \
