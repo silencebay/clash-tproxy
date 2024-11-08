@@ -80,7 +80,12 @@ set_dns() {
   log "[DNS] Setting local machine dns"
   while true; do
     log "[DNS] Waiting for mihomo getting ready"
-    curl -Ss http://www.tsinghua.edu.cn >/dev/null
+    if test "${ENABLE_IPV6_ROUTE:-false}" == true; then
+      curl -Ss http://www.tsinghua.edu.cn >/dev/null
+    else
+      curl -4Ss http://www.tsinghua.edu.cn >/dev/null
+    fi
+
     [ $? -eq 0 ] && break
     sleep 1
   done
