@@ -18,7 +18,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: latest
@@ -27,7 +27,7 @@ jobs:
   release-cgo:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: latest
@@ -37,7 +37,7 @@ jobs:
   release-compatible:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: latest
@@ -47,7 +47,7 @@ jobs:
   prerelease-alpha:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: prerelease-alpha
@@ -56,7 +56,7 @@ jobs:
   prerelease-alpha-cgo:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: prerelease-alpha
@@ -66,7 +66,7 @@ jobs:
   prerelease-alpha-compatible:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: prerelease-alpha
@@ -76,7 +76,7 @@ jobs:
   prerelease-meta:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: prerelease-meta
@@ -85,7 +85,7 @@ jobs:
   prerelease-meta-cgo:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: prerelease-meta
@@ -95,7 +95,7 @@ jobs:
   prerelease-meta-compatible:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: ./.github/actions
       with:
         tag: prerelease-meta
