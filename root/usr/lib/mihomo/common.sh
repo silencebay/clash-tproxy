@@ -47,7 +47,8 @@ get_bypass_ip6() {
     bypass_ip6=(
       "::1/128"
       "fe80::/10"
-      "fc00::/7")
+      "fc00::/7"
+      "ff00::/8")
   fi
   echo ${bypass_ip6[*]} $(get_host_ip6)
 }
