@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM alpine:3.17 AS rootfs-stage
+FROM --platform=$TARGETPLATFORM alpine:3.20 AS rootfs-stage
 
 # environment
 ENV ROOTFS=/root-out
@@ -89,7 +89,7 @@ RUN set -eux; \
 COPY root/. "${ROOTFS}/"
 
 # Runtime stage
-FROM --platform=$TARGETPLATFORM alpine:3.17 AS runtime
+FROM --platform=$TARGETPLATFORM alpine:3.20 AS runtime
 LABEL org.opencontainers.image.source https://silencebay@github.com/silencebay/clash-tproxy.git
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
