@@ -1,0 +1,7 @@
+#!/command/execlineb -P
+with-contenv
+pipeline {
+    fdmove -c 2 1
+    /usr/lib/mihomo/run-user-hooks.sh post-init false
+}
+mawk -W interactive "{printf \"%c[36m[user-hooks-post-init]%c[0m %s\\n\", 27, 27, $0}"

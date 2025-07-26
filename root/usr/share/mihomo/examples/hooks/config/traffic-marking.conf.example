@@ -1,0 +1,129 @@
+# Traffic Marking Configuration (nftables)
+# This file contains examples for configuring traffic marking rules using nftables
+# Copy this file to /config/hooks/config/traffic-marking.conf and modify as needed
+#
+# NOTE: This project uses nftables, not iptables, to match the TProxy implementation
+
+# =============================================================================
+# DMAC Marking Rules
+# =============================================================================
+# Format: MAC_ADDRESS:MARK:DESCRIPTION
+# These rules will mark packets based on destination MAC address
+
+# Example DMAC rules - modify according to your network devices
+DMAC_RULES="
+    # Gaming devices
+    aa:bb:cc:dd:ee:ff:0x10:Gaming Console PS5
+    11:22:33:44:55:66:0x11:Gaming Console Xbox
+    
+    # Streaming devices  
+    77:88:99:aa:bb:cc:0x20:Apple TV
+    dd:ee:ff:00:11:22:0x21:Nvidia Shield
+    
+    # Work devices
+    33:44:55:66:77:88:0x30:Work Laptop
+    99:aa:bb:cc:dd:ee:0x31:Work Desktop
+    
+    # IoT devices
+    ff:ee:dd:cc:bb:aa:0x40:Smart TV
+    00:11:22:33:44:55:0x41:Security Camera
+"
+
+# =============================================================================
+# Advanced Marking Rules  
+# =============================================================================
+# Format: MARK:DESCRIPTION:CONDITION1=VALUE1,CONDITION2=VALUE2,...
+# 
+# Supported conditions:
+# - dmac: destination MAC address
+# - smac: source MAC address
+# - src: source IP address/network
+# - dst: destination IP address/network  
+# - sport: source port(s)
+# - dport: destination port(s)
+# - proto: protocol (tcp/udp/icmp)
+
+ADVANCED_RULES="
+    # Gaming traffic - specific device + UDP protocol
+    0x100:Gaming Traffic:dmac=aa:bb:cc:dd:ee:ff,src=192.168.1.0/24,proto=udp
+    
+    # Streaming - specific device + HTTP/HTTPS
+    0x200:Video Streaming:dmac=77:88:99:aa:bb:cc,dport=80,proto=tcp
+    0x201:Secure Streaming:dmac=77:88:99:aa:bb:cc,dport=443,proto=tcp
+    
+    # VoIP traffic - SIP signaling
+    0x300:VoIP Signaling:src=192.168.1.0/24,dport=5060,proto=udp
+    0x301:VoIP RTP:src=192.168.1.0/24,dport=10000:20000,proto=udp
+    
+    # Work traffic - specific source + business ports
+    0x400:Work HTTP:smac=33:44:55:66:77:88,dport=80,proto=tcp
+    0x401:Work HTTPS:smac=33:44:55:66:77:88,dport=443,proto=tcp
+    0x402:Work SSH:smac=33:44:55:66:77:88,dport=22,proto=tcp
+    
+    # Bulk transfer - large file downloads
+    0x500:Bulk Download:dport=21,proto=tcp
+    0x501:Bulk P2P:dport=6881:6889,proto=tcp
+    
+    # Real-time applications
+    0x600:Video Conference:dport=3478,proto=udp
+    0x601:Screen Sharing:dport=5900,proto=tcp
+    
+    # IoT device management
+    0x700:IoT Management:dst=192.168.1.200,dport=8080,proto=tcp
+    0x701:Security Cameras:src=192.168.1.201,proto=tcp
+"
+
+# =============================================================================
+# FireQOS Integration Example
+# =============================================================================
+# After setting up the marking rules above, you can use them in FireQOS:
+#
+# interface eth0 world output
+#   # High priority - VoIP and real-time
+#   class voip
+#     match mark 0x300 0x301 0x600 0x601
+#     commit 10mbit prio 1
+#     
+#   # Gaming - low latency
+#   class gaming  
+#     match mark 0x10 0x11 0x100
+#     commit 50mbit prio 2
+#     
+#   # Streaming - guaranteed bandwidth
+#   class streaming
+#     match mark 0x20 0x21 0x200 0x201
+#     commit 100mbit prio 3
+#     
+#   # Work traffic - business priority
+#   class work
+#     match mark 0x30 0x31 0x400 0x401 0x402
+#     commit 30mbit prio 4
+#     
+#   # IoT - limited bandwidth
+#   class iot
+#     match mark 0x40 0x41 0x700 0x701
+#     commit 5mbit prio 5
+#     
+#   # Bulk - lowest priority
+#   class bulk
+#     match mark 0x500 0x501
+#     commit 10mbit prio 6
+
+# =============================================================================
+# Usage Instructions
+# =============================================================================
+# 1. Copy this file to /config/hooks/config/traffic-marking.conf
+# 2. Modify the MAC addresses and IP ranges to match your network
+# 3. Adjust the mark values (0xNN) as needed
+# 4. The hooks will automatically load these rules on container startup
+# 5. Use the marks in your fireqos.conf configuration
+#
+# To apply changes:
+# - Restart the container, or
+# - Run the hook manually: /config/hooks/post-init/02-dmac-marking.sh
+#
+# To debug:
+# - Set HOOK_DEBUG=true environment variable
+# - Check nftables rules: nft list tables
+# - View specific table: nft list table inet qos_marking
+# - Monitor traffic: nft monitor
