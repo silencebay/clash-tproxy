@@ -105,23 +105,22 @@ find /config/hooks -name "*.sh" -exec chmod +x {} \;
 
 The hook system includes advanced traffic marking capabilities that work seamlessly with FireQOS using **nftables** (matching the project's TProxy implementation):
 
-### DMAC-based Marking
-Mark packets based on destination MAC addresses:
+### Direct nftables Configuration
+Apply nftables rules directly from configuration files:
 ```bash
-# Simple DMAC marking
-/config/hooks/post-init/02-dmac-marking.sh
-```
+# Traffic marking
+/config/hooks/post-init/02-direct-nft.sh --config=/config/hooks/config/nft-traffic-marking.nft
 
-### Advanced Multi-layer Marking
-Mark packets based on complex L2/L3 conditions:
-```bash
-# Advanced marking with mixed conditions
-/config/hooks/post-init/03-advanced-traffic-marking.sh
+# Firewall rules
+/config/hooks/post-init/02-direct-nft.sh --config=/config/hooks/config/nft-firewall.nft
+
+# NAT configuration
+/config/hooks/post-init/02-direct-nft.sh --config=/config/hooks/config/nft-nat.nft
 ```
 
 ### Configuration
-1. Copy the example config: `cp /usr/share/mihomo/examples/hooks/config/traffic-marking.conf.example /config/hooks/config/traffic-marking.conf`
-2. Edit the config file with your network's MAC addresses and IP ranges
+1. Copy the example config: `cp /usr/share/mihomo/examples/config/hooks/nft-traffic-marking.nft /config/hooks/config/`
+2. Edit the .nft file with your network's MAC addresses and IP ranges
 3. The hooks will automatically apply the rules on container startup
 
 ### FireQOS Integration

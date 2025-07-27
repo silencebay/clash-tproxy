@@ -1,0 +1,161 @@
+# Direct nftables NAT Configuration for Mihomo Container
+# This file contains native nftables syntax for NAT rules
+#
+# Usage: Copy this file to /config/hooks/config/nft-nat.nft
+# Apply with: /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh --config=this_file
+#
+# TPROXY COMPATIBILITY NOTE:
+# This NAT configuration is designed to work alongside clash-tproxy.
+# It does not interfere with TProxy traffic marking (low 16 bits: 0x1, 6666).
+# For traffic marking/QoS, use nft-traffic-marking.nft separately.
+
+# =============================================================================
+# COMPREHENSIVE NAT TABLE
+# =============================================================================
+# This table demonstrates various NAT scenarios: masquerading, port forwarding, etc.
+
+table ip nat {
+    # =============================================================================
+    # SETS FOR EFFICIENT MATCHING
+    # =============================================================================
+    
+    set local_networks {
+        type ipv4_addr
+        flags interval
+        elements = { 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12 }
+    }
+    
+    set web_servers {
+        type ipv4_addr
+        elements = { 192.168.1.100, 192.168.1.101 }
+    }
+    
+    set gaming_servers {
+        type ipv4_addr
+        elements = { 192.168.1.200, 192.168.1.201 }
+    }
+
+    # =============================================================================
+    # PREROUTING CHAIN - DESTINATION NAT (Port Forwarding)
+    # =============================================================================
+    
+    chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+        
+        # Web server port forwarding
+        iifname "eth0" tcp dport 80 dnat to 192.168.1.100:80 comment "HTTP to web server"
+        iifname "eth0" tcp dport 443 dnat to 192.168.1.100:443 comment "HTTPS to web server"
+        
+        # Load balancing web traffic (round-robin)
+        iifname "eth0" tcp dport 8080 dnat to 192.168.1.100-192.168.1.101:80 comment "Load balanced web"
+        
+        # Gaming server port forwarding
+        iifname "eth0" tcp dport 27015 dnat to 192.168.1.200:27015 comment "Gaming server TCP"
+        iifname "eth0" udp dport 27015 dnat to 192.168.1.200:27015 comment "Gaming server UDP"
+        
+        # SSH port forwarding with port change
+        iifname "eth0" tcp dport 2222 dnat to 192.168.1.100:22 comment "SSH port forward"
+        
+        # FTP passive mode port range
+        iifname "eth0" tcp dport 21000-21100 dnat to 192.168.1.100 comment "FTP passive ports"
+        
+        # VPN server port forwarding
+        iifname "eth0" udp dport 1194 dnat to 192.168.1.150:1194 comment "OpenVPN server"
+        
+        # DNS server forwarding
+        iifname "eth0" udp dport 53 dnat to 192.168.1.10:53 comment "DNS server"
+        iifname "eth0" tcp dport 53 dnat to 192.168.1.10:53 comment "DNS server TCP"
+    }
+
+    # =============================================================================
+    # INPUT CHAIN - Local NAT (rarely used)
+    # =============================================================================
+    
+    chain input {
+        type nat hook input priority 100; policy accept;
+        # Usually not needed for typical NAT scenarios
+    }
+
+    # =============================================================================
+    # OUTPUT CHAIN - Source NAT for local traffic (rarely used)
+    # =============================================================================
+    
+    chain output {
+        type nat hook output priority -100; policy accept;
+        # Example: Force local traffic through specific interface
+        # ip daddr 8.8.8.8 oifname "eth1" snat to 203.0.113.2 comment "Force DNS through eth1"
+    }
+
+    # =============================================================================
+    # POSTROUTING CHAIN - Source NAT (Masquerading)
+    # =============================================================================
+    
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        
+        # Basic masquerading for internet access
+        oifname "eth0" ip saddr @local_networks masquerade comment "Internet masquerade"
+        
+        # Specific interface masquerading
+        oifname "wlan0" ip saddr 192.168.1.0/24 masquerade comment "WiFi masquerade"
+        
+        # Source NAT to specific IP (if you have static IP)
+        # oifname "eth0" ip saddr @local_networks snat to 203.0.113.1 comment "Static SNAT"
+        
+        # Gaming traffic optimization (preserve source ports)
+        oifname "eth0" ip saddr @gaming_servers tcp sport 27015-27030 masquerade random,persistent comment "Gaming SNAT"
+        oifname "eth0" ip saddr @gaming_servers udp sport 27015-27030 masquerade random,persistent comment "Gaming SNAT UDP"
+        
+        # Web server traffic (if hosting services)
+        oifname "eth0" ip saddr @web_servers masquerade persistent comment "Web server SNAT"
+    }
+}
+
+# =============================================================================
+# IPv6 NAT TABLE (if needed)
+# =============================================================================
+
+table ip6 nat {
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        
+        # IPv6 masquerading (if your ISP provides IPv6)
+        oifname "eth0" ip6 saddr fe80::/10 masquerade comment "IPv6 link-local masquerade"
+        # oifname "eth0" ip6 saddr 2001:db8::/32 masquerade comment "IPv6 ULA masquerade"
+    }
+}
+
+# =============================================================================
+# USAGE EXAMPLES
+# =============================================================================
+#
+# Apply NAT rules:
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh \
+#   --config=/config/hooks/config/nft-nat.nft
+#
+# Apply with cleanup:
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh \
+#   --config=/config/hooks/config/nft-nat.nft --cleanup
+#
+# Preview configuration:
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh \
+#   --config=/config/hooks/config/nft-nat.nft --dry-run
+#
+# Environment variable usage:
+# export HOOKS_DIRECT_NFT_CONFIG="/config/hooks/config/nft-nat.nft"
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh
+#
+# Features demonstrated:
+# - Port forwarding (DNAT)
+# - Load balancing
+# - Masquerading (SNAT)
+# - Gaming traffic optimization
+# - IPv6 NAT support
+# - Service-specific NAT rules
+# - Interface-specific rules
+#
+# IMPORTANT NOTES:
+# - Ensure ip_forward is enabled: echo 1 > /proc/sys/net/ipv4/ip_forward
+# - For IPv6: echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
+# - Test connectivity after applying rules
+# - Use --dry-run first to preview changes

@@ -1,0 +1,155 @@
+# Direct nftables Firewall Configuration for Mihomo Container
+# This file contains native nftables syntax for firewall rules
+#
+# Usage: Copy this file to /config/hooks/config/nft-firewall.nft
+# Apply with: /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh --config=this_file
+#
+# TPROXY COMPATIBILITY NOTE:
+# This firewall configuration is designed to work alongside clash-tproxy.
+# It does not interfere with TProxy traffic marking (low 16 bits: 0x1, 6666).
+# If you need traffic marking, use nft-traffic-marking.nft separately.
+
+# =============================================================================
+# COMPREHENSIVE FIREWALL TABLE
+# =============================================================================
+# This table demonstrates a complete firewall setup with input/forward filtering
+
+table inet firewall {
+    # =============================================================================
+    # SETS FOR EFFICIENT MATCHING
+    # =============================================================================
+    
+    set trusted_networks {
+        type ipv4_addr
+        flags interval
+        elements = { 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12 }
+    }
+    
+    set blocked_countries {
+        type ipv4_addr
+        flags interval
+        # Example blocked IP ranges (replace with actual GeoIP data)
+        elements = { 1.2.3.0/24, 5.6.7.0/24 }
+    }
+    
+    set allowed_ports {
+        type inet_service
+        elements = { 22, 80, 443, 53, 123 }
+    }
+    
+    set gaming_ports {
+        type inet_service
+        flags interval
+        elements = { 27015-27030, 3478-3479 }
+    }
+
+    # =============================================================================
+    # INPUT CHAIN - INCOMING TRAFFIC FILTERING
+    # =============================================================================
+    
+    chain input {
+        type filter hook input priority filter; policy drop;
+        
+        # Allow loopback
+        iif lo accept comment "Allow loopback"
+        
+        # Allow established and related connections
+        ct state established,related accept comment "Allow established connections"
+        
+        # Allow ICMP
+        ip protocol icmp accept comment "Allow ICMP"
+        ip6 nexthdr ipv6-icmp accept comment "Allow ICMPv6"
+        
+        # Allow from trusted networks
+        ip saddr @trusted_networks accept comment "Allow trusted networks"
+        
+        # Block known bad actors
+        ip saddr @blocked_countries drop comment "Block bad countries"
+        
+        # Rate limit SSH
+        tcp dport 22 ct state new limit rate 3/minute burst 3 packets accept comment "Rate limit SSH"
+        
+        # Allow common services
+        tcp dport @allowed_ports accept comment "Allow common services"
+        udp dport @allowed_ports accept comment "Allow common services UDP"
+        
+        # Allow gaming ports for local gaming
+        tcp dport @gaming_ports accept comment "Allow gaming TCP"
+        udp dport @gaming_ports accept comment "Allow gaming UDP"
+        
+        # Log and drop everything else
+        limit rate 5/minute burst 5 packets log prefix "INPUT DROP: " level info
+        drop comment "Default drop"
+    }
+
+    # =============================================================================
+    # FORWARD CHAIN - FORWARDED TRAFFIC FILTERING
+    # =============================================================================
+    
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        
+        # Allow established and related connections
+        ct state established,related accept comment "Allow established forwarded"
+        
+        # Allow forwarding from trusted networks
+        ip saddr @trusted_networks accept comment "Allow forwarding from trusted"
+        
+        # Block forwarding to blocked countries
+        ip daddr @blocked_countries drop comment "Block forwarding to bad countries"
+        
+        # Allow specific forwarded services
+        tcp dport @allowed_ports accept comment "Allow forwarded services"
+        udp dport @allowed_ports accept comment "Allow forwarded services UDP"
+        
+        # Log and drop everything else
+        limit rate 5/minute burst 5 packets log prefix "FORWARD DROP: " level info
+        drop comment "Default forward drop"
+    }
+
+    # =============================================================================
+    # OUTPUT CHAIN - OUTGOING TRAFFIC FILTERING (Optional)
+    # =============================================================================
+    
+    chain output {
+        type filter hook output priority filter; policy accept;
+        
+        # Generally allow all outgoing traffic
+        # Add specific restrictions here if needed
+        
+        # Example: Block outgoing to blocked countries
+        # ip daddr @blocked_countries drop comment "Block outgoing to bad countries"
+        
+        accept comment "Allow all outgoing"
+    }
+}
+
+# =============================================================================
+# USAGE EXAMPLES
+# =============================================================================
+#
+# Apply firewall rules:
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh \
+#   --config=/config/hooks/config/nft-firewall.nft
+#
+# Apply with cleanup (remove existing rules first):
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh \
+#   --config=/config/hooks/config/nft-firewall.nft --cleanup
+#
+# Preview configuration:
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh \
+#   --config=/config/hooks/config/nft-firewall.nft --dry-run
+#
+# Environment variable usage:
+# export HOOKS_DIRECT_NFT_CONFIG="/config/hooks/config/nft-firewall.nft"
+# export HOOKS_DIRECT_NFT_CLEANUP=true
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh
+#
+# Features demonstrated:
+# - Complete firewall setup
+# - Set-based efficient matching
+# - Rate limiting
+# - Logging
+# - GeoIP blocking
+# - Service-specific rules
+# - Gaming traffic allowance

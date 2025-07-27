@@ -158,7 +158,7 @@ docker exec mihomo nft monitor
 docker logs mihomo | grep "user-hooks"
 
 # Manually run hooks for testing
-docker exec mihomo /config/hooks/post-init/02-dmac-marking.sh
+docker exec mihomo /config/hooks/post-init/02-direct-nft.sh --config=/config/hooks/config/nft-traffic-marking.nft
 ```
 
 ### FireQOS Status

@@ -1,5 +1,28 @@
 #!/bin/bash
 
+# =============================================================================
+# TProxy Setup Script - Traffic Marking System
+# =============================================================================
+# This script sets up transparent proxy rules using nftables.
+#
+# MARKING SYSTEM DESIGN:
+# ----------------------
+# 32-bit mark field is divided into two parts to avoid conflicts:
+#
+# Low 16 bits (0x0000FFFF): TProxy system
+#   - PROXY_FWMARK (0x1): Marks traffic for transparent proxy
+#   - PROXY_ROUTING_MARK (0x2): Marks mihomo process traffic for bypass
+#
+# High 16 bits (0xFFFF0000): Available for other systems (optional)
+#   - 0x10000+: Can be used by traffic classification systems (e.g., QoS)
+#
+# COMPATIBILITY:
+# --------------
+# - Uses bit masking (& 0xFFFF) to check only TProxy bits
+# - Preserves marks in high bits when setting TProxy marks
+# - Allows coexistence with other marking systems (e.g., QoS, traffic shaping)
+# =============================================================================
+
 source /usr/lib/mihomo/common.sh
 
 bypass_ip4=$(get_bypass_ip4)
@@ -41,24 +64,45 @@ table inet $NFT_TABLE {
     $takeover_ip6_rule
     $bypass_ip4_rule
     $bypass_ip6_rule
-    meta mark "${PROXY_ROUTING_MARK}" accept comment "Bypass traffic originated from this machine's mihomo"
+    # BYPASS CHECK: Check if traffic is from mihomo process
+    # Uses bit mask to check only low 16 bits, allowing other systems to use high 16 bits
+    meta mark and 0xFFFF == ${PROXY_ROUTING_MARK} accept comment "Bypass traffic from mihomo process (check low 16 bits only)"
+
+    # ESTABLISHED CONNECTIONS: Bypass already established transparent proxy connections
     meta l4proto tcp socket transparent 1 meta mark set $PROXY_FWMARK accept comment "Bypass established transparent proxy connections"
-    meta l4proto { tcp, udp } tproxy to :$PROXY_TPROXY_PORT meta mark set $PROXY_FWMARK comment "Transparent proxy for other traffic"
+
+    # TRANSPARENT PROXY: Redirect traffic to mihomo and mark it
+    # Preserves existing marks in high 16 bits (e.g., QoS marks) while setting TProxy mark in low 16 bits
+    meta l4proto { tcp, udp } tproxy to :$PROXY_TPROXY_PORT meta mark set ((meta mark and 0xFFFF0000) | $PROXY_FWMARK) comment "Set TProxy mark, preserve high bits"
   }
 
   chain $NFT_OUTPUT_CHAIN {
     type route hook output priority mangle; policy accept;
     oifname != eth0 accept comment "Process only traffic from specified network interface (bypass traffic internal to this machine, e.g., loopback, etc.)"
-    meta mark "${PROXY_ROUTING_MARK}" accept comment "Bypass traffic originated from this machine's mihomo"
+    # OUTPUT CHAIN: Process traffic originating from this machine
+
+    # BYPASS CHECK: Same as prerouting - check mihomo process traffic
+    meta mark and 0xFFFF == ${PROXY_ROUTING_MARK} accept comment "Bypass traffic from mihomo process (check low 16 bits only)"
+
+    # USER BYPASS: Bypass traffic from mihomo user (alternative to mark-based bypass)
     meta skuid "${PROXY_BYPASS_USER_ID}" accept comment "Bypass traffic originated from user abc (owner of mihomo process)"
+
+    # DNS BYPASS: Let DNS traffic pass through normally
     #meta l4proto { tcp, udp } th dport 53 meta mark set $PROXY_FWMARK accept comment "DNS rerouting to prerouting"
     meta l4proto { tcp, udp } th dport 53 accept
+
+    # NETBIOS BYPASS: Bypass local network discovery traffic
     udp dport { netbios-ns, netbios-dgm, netbios-ssn } accept comment "Bypass NBNS traffic"
+
+    # IP-BASED RULES: Apply takeover and bypass rules
     $takeover_ip4_rule
     $takeover_ip6_rule
     $bypass_ip4_rule
     $bypass_ip6_rule
-    meta l4proto { tcp, udp } meta mark set $PROXY_FWMARK comment "Reroute other traffic to prerouting"
+
+    # REROUTE TO PREROUTING: Mark other traffic for processing in prerouting chain
+    # Preserves existing marks in high 16 bits (e.g., QoS) while adding TProxy mark for routing
+    meta l4proto { tcp, udp } meta mark set ((meta mark and 0xFFFF0000) | $PROXY_FWMARK) comment "Reroute traffic to prerouting, preserve high bits"
   }
 }
 EOF

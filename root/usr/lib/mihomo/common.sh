@@ -1,5 +1,43 @@
 #!/bin/bash
 
+# =============================================================================
+# Common variables and functions for mihomo scripts
+# =============================================================================
+#
+# TRAFFIC MARKING SYSTEM OVERVIEW:
+# ---------------------------------
+# This project uses a 32-bit traffic marking system designed to support both
+# transparent proxy (TProxy) functionality and Quality of Service (QoS) classification.
+#
+# BIT ALLOCATION:
+# ---------------
+# 32-bit mark field is divided into two independent parts:
+#
+# Low 16 bits (0x0000FFFF): TProxy System
+#   - PROXY_FWMARK (0x1): Marks traffic for transparent proxy routing
+#   - PROXY_ROUTING_MARK (0x2): Marks mihomo process traffic for bypass
+#
+# High 16 bits (0xFFFF0000): Custom Marking (optional)
+#   - 0x10000: Gaming devices (highest priority)
+#   - 0x20000: Streaming devices (high priority)
+#   - 0x30000: Work devices (medium priority)
+#   - 0x40000: Mobile devices (standard priority)
+#   - 0x50000: IoT devices (low priority)
+#
+# COMPATIBILITY DESIGN:
+# ---------------------
+# - TProxy checks use bit masking (& 0xFFFF) to ignore custom bits
+# - Custom marking uses OR operations to preserve TProxy bits
+# - Both systems can operate independently and simultaneously
+# - No conflicts between TProxy routing and custom classification
+#
+# EXAMPLE COMBINED MARKING:
+# -------------------------
+# Gaming device packet: 0x10001 = 0x10000 (Custom: Gaming) | 0x1 (TProxy: Marked)
+# - TProxy sees: 0x10001 & 0xFFFF = 0x1 ✓ (correctly identified)
+# - Custom sees: 0x10001 & 0x10000 = 0x10000 ✓ (correctly classified)
+# =============================================================================
+
 source /usr/lib/mihomo/log.sh
 
 is_ipv4() {
@@ -151,14 +189,93 @@ join_args() {
 }
 
 readonly PROXY_BYPASS_USER="abc"
+# =============================================================================
+# TProxy System Configuration
+# =============================================================================
+# These marks use the low 16 bits (0x0000FFFF) of the 32-bit mark field
+
 readonly PROXY_BYPASS_USER_ID="911"
 # readonly PROXY_BYPASS_CGROUP="0x100000"
 readonly PROXY_TPROXY_PORT="${TPROXY_PORT:-7893}"
+
+# PROXY_FWMARK: Marks traffic that should be processed by transparent proxy
+# Used by routing rules to direct traffic to mihomo
 readonly PROXY_FWMARK="0x1"
+
 readonly PROXY_ROUTE_TABLE="0x1"
-readonly PROXY_ROUTING_MARK="${ROUTING_MARK:-6666}"
+
+# PROXY_ROUTING_MARK: Marks traffic from mihomo process itself
+# Used to prevent infinite loops by bypassing mihomo's own traffic
+# Default 0x2 (can be overridden by ROUTING_MARK environment variable)
+readonly PROXY_ROUTING_MARK="${ROUTING_MARK:-0x2}"
+
+# =============================================================================
+# TProxy Mark Validation Functions
+# =============================================================================
+
+# Validate that TProxy marks stay within low 16 bits
+validate_tproxy_marks() {
+    local mark_name="$1"
+    local mark_value="$2"
+    local mark_dec
+
+    # Convert hex to decimal if needed
+    if [[ "$mark_value" =~ ^0x[0-9a-fA-F]+$ ]]; then
+        mark_dec=$((mark_value))
+    else
+        mark_dec="$mark_value"
+    fi
+
+    # Check if mark exceeds low 16 bits (0xFFFF = 65535)
+    if [[ $mark_dec -gt 65535 ]]; then
+        echo "ERROR: TProxy mark $mark_name ($mark_value) exceeds low 16 bits limit (0xFFFF)" >&2
+        echo "TProxy marks must stay within 0x0000-0xFFFF range to avoid conflicts" >&2
+        return 1
+    fi
+
+    # Check if mark conflicts with high 16 bits
+    local high_bits=$((mark_dec & 0xFFFF0000))
+    if [[ $high_bits -ne 0 ]]; then
+        echo "ERROR: TProxy mark $mark_name ($mark_value) uses high 16 bits" >&2
+        echo "High 16 bits are reserved for custom marking" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# Validate all TProxy marks on script load
+validate_all_tproxy_marks() {
+    local validation_failed=false
+
+    # Validate PROXY_FWMARK
+    if ! validate_tproxy_marks "PROXY_FWMARK" "$PROXY_FWMARK"; then
+        validation_failed=true
+    fi
+
+    # Validate PROXY_ROUTING_MARK
+    if ! validate_tproxy_marks "PROXY_ROUTING_MARK" "$PROXY_ROUTING_MARK"; then
+        validation_failed=true
+    fi
+
+    if [[ "$validation_failed" == "true" ]]; then
+        echo "FATAL: TProxy mark validation failed. Please fix the configuration." >&2
+        return 1
+    fi
+
+    return 0
+}
+
 readonly PROXY_DNS_PORT="1053"
 readonly PROXY_TUN_DEVICE_NAME="utun"
 readonly NFT_TABLE="mihomo"
 readonly NFT_PREROUTING_CHAIN="prerouting"
 readonly NFT_OUTPUT_CHAIN="output"
+
+# =============================================================================
+# Validate TProxy marks on script load
+# =============================================================================
+# This ensures that any configuration errors are caught early
+if ! validate_all_tproxy_marks; then
+    exit 1
+fi

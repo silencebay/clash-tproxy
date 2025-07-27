@@ -1,0 +1,330 @@
+# Direct nftables Traffic Marking Configuration for Mihomo Container
+# This file contains native nftables syntax for traffic marking with QoS integration
+#
+# Usage: Copy this file to /config/hooks/config/nft-traffic-marking.nft
+# The 02-direct-nft.sh hook will apply these rules directly
+
+# =============================================================================
+# TPROXY COMPATIBILITY - CRITICAL INFORMATION
+# =============================================================================
+#
+# IMPORTANT: This configuration is designed for clash-tproxy integration!
+#
+# MARK BIT ALLOCATION (32-bit field):
+# -----------------------------------
+# Low 16 bits (0x0000FFFF): Reserved for TProxy system
+#   - 0x1 (PROXY_FWMARK): Marks traffic for transparent proxy routing
+#   - 0x2 (PROXY_ROUTING_MARK): Marks mihomo process traffic for bypass
+#
+# High 16 bits (0xFFFF0000): Available for custom marking
+#   - 0x10000+: Simple device-based rules
+#   - 0x100000+: Complex multi-condition rules
+#
+# CRITICAL: Always use OR operation (meta mark | CUSTOM_MARK) to preserve TProxy marks!
+#
+# Mark Allocation Scheme (避免与 TProxy 标记冲突):
+# -----------------------------------------------
+# Simple Device-based Rules:
+#   0x10000: Gaming devices (Highest Priority)
+#   0x20000: Streaming devices (High Priority)
+#   0x30000: Work devices (Medium-High Priority)
+#   0x40000: Mobile devices (Medium Priority)
+#   0x50000: IoT devices (Low Priority)
+#
+# Complex Multi-condition Rules:
+#   0x100000+: Gaming traffic with specific protocols/ports
+#   0x200000+: Streaming services with specific destinations
+#   0x300000+: VoIP and real-time communication (Highest Priority)
+#   0x400000+: Work applications and business traffic
+#   0x500000+: File transfer and backup traffic
+#   0x600000+: P2P and bulk downloads (Lowest Priority)
+#   0x700000+: IoT device management
+#   0x800000+: DNS and network services (Critical)
+#
+# Hook-specific Mark Ranges (when using multiple hooks):
+#   PREROUTING: 0x100000+ (ingress classification)
+#   OUTPUT:     0x1100000+ (local egress classification)
+#   FORWARD:    0x1200000+ (transit classification)
+#   POSTROUTING: 0x10000000+ (final egress priority bits)
+#
+# IMPORTANT: Custom marks must have low 16 bits = 0 to avoid TProxy conflicts!
+# ✅ Correct: 0x10000000, 0x20000000, 0x12340000
+# ❌ Wrong:   0x10000001, 0x1000FFFF, 0xFFFFFFFF
+#
+# 使用 OR 操作 (meta mark | CUSTOM_MARK) 确保不覆盖 TProxy 标记
+
+# =============================================================================
+# COMPREHENSIVE TRAFFIC MARKING TABLE
+# =============================================================================
+# This table demonstrates multi-hook traffic marking with full nftables syntax
+# and TProxy-compatible mark allocation.
+#
+# RULE ORGANIZATION PRINCIPLE:
+# Rules are organized from SPECIFIC to GENERAL with 'return' statements.
+# This ensures:
+# 1. Better performance (specific matches exit early)
+# 2. No rule conflicts (return prevents further processing)
+# 3. Clear precedence (specific rules override general ones)
+
+table inet traffic_marking {
+    # =============================================================================
+    # SETS FOR EFFICIENT MATCHING
+    # =============================================================================
+    # Define reusable sets for common IP ranges and ports
+    
+    set local_networks {
+        type ipv4_addr
+        flags interval
+        elements = { 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12 }
+    }
+    
+    set gaming_devices {
+        type ether_addr
+        elements = { 
+            aa:bb:cc:dd:ee:01,  # Gaming PC
+            aa:bb:cc:dd:ee:02   # Gaming Console
+        }
+    }
+    
+    set streaming_devices {
+        type ether_addr
+        elements = {
+            bb:cc:dd:ee:ff:01,  # Apple TV
+            bb:cc:dd:ee:ff:02   # Smart TV
+        }
+    }
+    
+    set gaming_ports {
+        type inet_service
+        flags interval
+        elements = { 27015-27030, 3478-3479, 8801-8802 }
+    }
+    
+    set streaming_services {
+        type ipv4_addr
+        flags interval
+        elements = {
+            23.246.0.0/18,      # Netflix
+            172.217.0.0/16,     # YouTube/Google
+            151.101.0.0/16      # Twitch
+        }
+    }
+
+    # =============================================================================
+    # PREROUTING CHAIN - INGRESS TRAFFIC MARKING
+    # =============================================================================
+    # Marks incoming and forwarded traffic
+    
+    chain prerouting_mark {
+        type filter hook prerouting priority mangle; policy accept;
+
+        # =================================================================
+        # GAMING DEVICES - Specific to General (with return)
+        # =================================================================
+
+        # Gaming UDP traffic (highest priority for gaming)
+        ether daddr @gaming_devices meta l4proto udp meta mark set (meta mark | 0x100000) return comment "Gaming UDP"
+
+        # Gaming TCP on specific ports
+        ether daddr @gaming_devices meta l4proto tcp th dport @gaming_ports meta mark set (meta mark | 0x110000) return comment "Gaming TCP"
+
+        # Gaming device default (fallback for other traffic)
+        ether daddr @gaming_devices meta mark set (meta mark | 0x10000) comment "Gaming Device Default"
+
+        # =================================================================
+        # STREAMING DEVICES - Specific to General (with return)
+        # =================================================================
+
+        # Streaming device specific protocols
+        ether daddr @streaming_devices th dport { 80, 443, 1935 } meta l4proto tcp meta mark set (meta mark | 0x200000) return comment "Streaming Devices"
+
+        # Streaming device default (fallback)
+        ether daddr @streaming_devices meta mark set (meta mark | 0x20000) comment "Streaming Device Default"
+
+        # =================================================================
+        # WORK DEVICES - Specific to General (with return)
+        # =================================================================
+
+        # Work laptop specific protocols
+        ether saddr cc:dd:ee:ff:00:01 th dport { 22, 443, 993, 587 } meta l4proto tcp meta mark set (meta mark | 0x400000) return comment "Work Laptop"
+
+        # =================================================================
+        # GLOBAL SERVICES - Most Specific First (with return)
+        # =================================================================
+
+        # VoIP - Highest Priority (0x300000+)
+        th dport 5060 meta l4proto udp meta mark set (meta mark | 0x300000) return comment "SIP Signaling"
+        th dport 10000-20000 meta l4proto udp meta mark set (meta mark | 0x310000) return comment "RTP Media"
+
+        # Network Services - Critical (0x800000+)
+        th dport 53 meta l4proto udp meta mark set (meta mark | 0x800000) return comment "DNS Queries"
+        th dport 123 meta l4proto udp meta mark set (meta mark | 0x810000) return comment "NTP Sync"
+        th dport 67-68 meta l4proto udp meta mark set (meta mark | 0x820000) return comment "DHCP"
+
+        # Gaming ports from any source (lower priority than device-specific)
+        ip saddr @local_networks th dport @gaming_ports meta l4proto udp meta mark set (meta mark | 0x120000) return comment "Gaming Ports"
+
+        # Streaming services by destination
+        ip daddr @streaming_services th dport 443 meta l4proto tcp meta mark set (meta mark | 0x210000) return comment "Streaming Services"
+
+        # VPN Traffic
+        ip saddr @local_networks th dport 1194 meta l4proto udp meta mark set (meta mark | 0x410000) return comment "VPN Traffic"
+
+        # P2P and Bulk - Lowest Priority (0x600000+)
+        th dport 6881-6889 meta l4proto { tcp, udp } meta mark set (meta mark | 0x600000) return comment "BitTorrent"
+        th dport 4662 meta l4proto tcp meta mark set (meta mark | 0x610000) return comment "eMule"
+    }
+
+    # =============================================================================
+    # OUTPUT CHAIN - LOCAL EGRESS TRAFFIC MARKING
+    # =============================================================================
+    # Marks locally generated outbound traffic
+    
+    chain output_mark {
+        type filter hook output priority mangle; policy accept;
+        
+        # Local Gaming Traffic (0x1x0000+)
+        th dport @gaming_ports meta l4proto udp meta mark set (meta mark | 0x1100000) comment "Local Gaming UDP"
+        th dport @gaming_ports meta l4proto tcp meta mark set (meta mark | 0x1110000) comment "Local Gaming TCP"
+
+        # Local VoIP (0x3x0000+)
+        th dport 5060 meta l4proto udp meta mark set (meta mark | 0x3100000) comment "Local SIP"
+        th dport 10000-20000 meta l4proto udp meta mark set (meta mark | 0x3110000) comment "Local RTP"
+
+        # Local Streaming (0x2x0000+)
+        ip daddr @streaming_services th dport 443 meta l4proto tcp meta mark set (meta mark | 0x2100000) comment "Local Streaming"
+        th dport 1935 meta l4proto tcp meta mark set (meta mark | 0x2110000) comment "Local Stream Upload"
+
+        # Local Work Traffic (0x4x0000+)
+        th dport { 22, 443, 993, 587 } meta l4proto tcp meta mark set (meta mark | 0x4100000) comment "Local Work"
+        th dport 1194 meta l4proto udp meta mark set (meta mark | 0x4110000) comment "Local VPN"
+
+        # Local Network Services (0x8x0000+)
+        th dport 53 meta l4proto udp meta mark set (meta mark | 0x8100000) comment "Local DNS"
+        th dport 123 meta l4proto udp meta mark set (meta mark | 0x8110000) comment "Local NTP"
+        
+        # Local P2P (0x6x0000+)
+        th dport 6881-6889 meta l4proto { tcp, udp } meta mark set (meta mark | 0x6100000) comment "Local BitTorrent"
+    }
+
+    # =============================================================================
+    # FORWARD CHAIN - TRANSIT TRAFFIC MARKING
+    # =============================================================================
+    # Marks traffic being forwarded between interfaces
+    
+    chain forward_mark {
+        type filter hook forward priority mangle; policy accept;
+        
+        # Transit Gaming (0x1200000+)
+        th dport @gaming_ports meta l4proto udp meta mark set (meta mark | 0x1200000) comment "Transit Gaming"
+
+        # Transit VoIP (0x3200000+)
+        th dport { 5060, 10000-20000 } meta l4proto udp meta mark set (meta mark | 0x3200000) comment "Transit VoIP"
+
+        # Transit Streaming (0x2200000+)
+        ip daddr @streaming_services th dport 443 meta l4proto tcp meta mark set (meta mark | 0x2200000) comment "Transit Streaming"
+
+        # Transit Work (0x4200000+)
+        th dport { 22, 443, 1194, 3389 } meta mark set (meta mark | 0x4200000) comment "Transit Work"
+
+        # Transit P2P (0x6200000+)
+        th dport 6881-6889 meta mark set (meta mark | 0x6200000) comment "Transit P2P"
+    }
+
+    # =============================================================================
+    # POSTROUTING CHAIN - EGRESS SHAPING
+    # =============================================================================
+    # Final egress classification for bandwidth shaping
+    
+    chain postrouting_mark {
+        type filter hook postrouting priority mangle; policy accept;
+
+        # High Priority Egress (use high bits to avoid TProxy conflicts)
+        meta mark & 0x300000 == 0x300000 meta mark set (meta mark | 0x10000000) comment "VoIP Egress Priority"
+        meta mark & 0x100000 == 0x100000 meta mark set (meta mark | 0x20000000) comment "Gaming Egress Priority"
+
+        # Medium Priority Egress
+        meta mark & 0x200000 == 0x200000 meta mark set (meta mark | 0x30000000) comment "Streaming Egress Priority"
+        meta mark & 0x400000 == 0x400000 meta mark set (meta mark | 0x40000000) comment "Work Egress Priority"
+
+        # Low Priority Egress
+        meta mark & 0x600000 == 0x600000 meta mark set (meta mark | 0x50000000) comment "P2P Egress Priority"
+    }
+}
+
+# =============================================================================
+# TPROXY COMPATIBILITY AND MARK ALLOCATION
+# =============================================================================
+#
+# IMPORTANT: This configuration is designed for clash-tproxy integration
+#
+# MARK BIT ALLOCATION (32-bit field):
+# -----------------------------------
+# Low 16 bits (0x0000FFFF): Reserved for TProxy system
+#   - 0x1 (PROXY_FWMARK): Marks traffic for transparent proxy routing
+#   - 0x2 (PROXY_ROUTING_MARK): Marks mihomo process traffic for bypass
+#
+# High 16 bits (0xFFFF0000): Available for QoS traffic marking
+#   - 0x10000+: Simple device-based rules
+#   - 0x100000+: Complex multi-condition rules
+#
+# CRITICAL: Always use OR operation (meta mark | QoS_MARK) to preserve TProxy marks!
+#
+# Mark Range Allocation (TProxy Compatible):
+# ------------------------------------------
+# Simple Device-based Rules:
+#   0x10000: Gaming devices (Highest Priority)
+#   0x20000: Streaming devices (High Priority)
+#   0x30000: Work devices (Medium-High Priority)
+#   0x40000: Mobile devices (Medium Priority)
+#   0x50000: IoT devices (Low Priority)
+#
+# Complex Multi-condition Rules (PREROUTING):
+#   0x100000+: Gaming traffic base
+#   0x110000+: Gaming TCP variants
+#   0x120000+: Gaming UDP variants
+#   0x200000+: Streaming services base
+#   0x210000+: Streaming variants
+#   0x300000+: VoIP and real-time communication (Highest Priority)
+#   0x310000+: VoIP variants
+#   0x400000+: Work applications and business traffic
+#   0x410000+: Work variants
+#   0x600000+: P2P and bulk downloads (Lowest Priority)
+#   0x610000+: P2P variants
+#   0x800000+: DNS and network services (Critical)
+#   0x810000+: Network service variants
+#   0x820000+: Additional network services
+#
+# Hook-specific Mark Ranges (when using multiple hooks):
+#   PREROUTING: 0x100000+ (ingress classification)
+#   OUTPUT:     0x1100000+ (local egress classification)
+#   FORWARD:    0x1200000+ (transit classification)
+#   POSTROUTING: 0x10000000+ (final egress priority bits)
+
+# =============================================================================
+# USAGE NOTES
+# =============================================================================
+#
+# This configuration demonstrates:
+# 1. Full nftables syntax support
+# 2. Efficient set-based matching
+# 3. Multi-hook comprehensive marking
+# 4. TProxy-compatible mark allocation
+# 5. Advanced features like bit operations
+# 6. Hierarchical priority system
+#
+# To apply:
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh \
+#   --config=/config/hooks/config/nft-traffic-marking.nft
+#
+# To preview:
+# /usr/share/mihomo/examples/hooks/post-init/02-direct-nft.sh \
+#   --config=/config/hooks/config/nft-traffic-marking.nft --dry-run
+#
+# Advantages over parsed approach:
+# - No parsing overhead
+# - Full nftables feature access
+# - Easy debugging with standard tools
+# - Support for sets, maps, and advanced matching
+# - Direct control over rule optimization
+# - Perfect TProxy integration
