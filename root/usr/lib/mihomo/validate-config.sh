@@ -40,34 +40,34 @@ else
     exit 1
 fi
 
-# Check for required data files and download if missing
-log "Checking required data files..."
+# # Check for required data files and download if missing
+# log "Checking required data files..."
 
-declare -A data_files=(
-    ["country.mmdb"]="https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/country.mmdb"
-    ["geoip.dat"]="https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat"
-    ["geosite.dat"]="https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.dat"
-)
+# declare -A data_files=(
+#     ["country.mmdb"]="https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/country.mmdb"
+#     ["geoip.dat"]="https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat"
+#     ["geosite.dat"]="https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.dat"
+# )
 
-for file in "${!data_files[@]}"; do
-    file_path="${CONFIG_DIR}/${file}"
-    if [[ -f "$file_path" ]]; then
-        log "✓ Found: ${file}"
+# for file in "${!data_files[@]}"; do
+#     file_path="${CONFIG_DIR}/${file}"
+#     if [[ -f "$file_path" ]]; then
+#         log "✓ Found: ${file}"
         
-        # Check if file is older than 7 days
-        if [[ $(find "$file_path" -mtime +7 2>/dev/null | wc -l) -gt 0 ]]; then
-            log "⚠ ${file} is older than 7 days, consider updating"
-        fi
-    else
-        log "⚠ Missing: ${file}, downloading..."
-        if curl -fsSL "${data_files[$file]}" -o "$file_path"; then
-            log "✓ Downloaded: ${file}"
-        else
-            log_error "Failed to download: ${file}"
-            log "You may need to download this file manually"
-        fi
-    fi
-done
+#         # Check if file is older than 7 days
+#         if [[ $(find "$file_path" -mtime +7 2>/dev/null | wc -l) -gt 0 ]]; then
+#             log "⚠ ${file} is older than 7 days, consider updating"
+#         fi
+#     else
+#         log "⚠ Missing: ${file}, downloading..."
+#         if curl -fsSL "${data_files[$file]}" -o "$file_path"; then
+#             log "✓ Downloaded: ${file}"
+#         else
+#             log_error "Failed to download: ${file}"
+#             log "You may need to download this file manually"
+#         fi
+#     fi
+# done
 
 # Validate critical configuration sections
 log "Validating critical configuration sections..."
